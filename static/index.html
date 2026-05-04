@@ -103,32 +103,56 @@ async function translate(text,source,target){if(!text||text.length<2)return text
 
 async function fetchDefinition(word){try{const r=await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(word.toLowerCase()));const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].meanings){return d[0].meanings.map(m=>({pos:m.partOfSpeech,defs:m.definitions.slice(0,2).map(x=>x.definition)}));}}catch(e){}return null;}
 
-function findGlossary(word){const w=word.toLowerCase().replace(/[^a-z]/gi,"");return GLOSSARY.find(g=>g.en.toLowerCase()===w||g.en.toLowerCase().includes(w));}
+function findGlossary(word){const w=word.toLowerCase().replace(/[^a-z]/gi,"");if(!w)return null;return GLOSSARY.find(g=>g.en.toLowerCase()===w||g.en.toLowerCase().includes(w));}
 
 function WordModal({word,onClose}){
   const [data,setData]=useState(null);
+  const [ruTrans,setRuTrans]=useState(null);
   const gloss=findGlossary(word);
-  useEffect(()=>{fetchDefinition(word).then(d=>setData(d));},[word]);
+  useEffect(()=>{
+    fetchDefinition(word).then(d=>setData(d));
+    const hasCyrillic=/[\u0400-\u04FF]/.test(word);
+    if(hasCyrillic)translate(word,"ru","en").then(t=>setRuTrans(t));
+  },[word]);
   return React.createElement("div",{className:"modal",onClick:onClose},
     React.createElement("div",{className:"modal-box",onClick:e=>e.stopPropagation()},
       React.createElement("button",{className:"modal-close",onClick:onClose},"X"),
       React.createElement("div",{className:"dict-word"},word),
+      ruTrans&&React.createElement("div",{className:"dict-ru"},"Translation: "+ruTrans),
       gloss&&React.createElement("div",{className:"dict-ru"},gloss.ru),
       gloss&&React.createElement("div",{className:"dict-def"},gloss.def),
       data&&data.map((m,i)=>React.createElement("div",{key:i,style:{marginBottom:14}},
         React.createElement("div",{className:"dict-pos"},m.pos),
         m.defs.map((def,j)=>React.createElement("div",{key:j,className:"dict-def"},"• "+def))
       )),
-      !data&&!gloss&&React.createElement("div",{className:"dict-def"},"No definition found.")
+      !data&&!gloss&&!ruTrans&&React.createElement("div",{className:"dict-def"},"No definition found. Try an English word, or check the Glossary tab.")
     )
   );
 }
 
-function Seg({s,onTap,onDel}){
+function Seg({s,onTap,onDel,onEdit}){
+  const [editing,setEditing]=useState(false);
+  const [editText,setEditText]=useState(s.text);
+  const [editTrans,setEditTrans]=useState(s.trans);
+
+  if(editing){
+    return React.createElement("div",{className:"segment"},
+      React.createElement("input",{value:editText,onChange:e=>setEditText(e.target.value),style:{width:"100%",marginBottom:6,background:"#222",border:"1px solid #444",color:"#fff",padding:8,borderRadius:8,fontSize:15}}),
+      React.createElement("input",{value:editTrans,onChange:e=>setEditTrans(e.target.value),style:{width:"100%",marginBottom:6,background:"#222",border:"1px solid #444",color:"#22c55e",padding:8,borderRadius:8,fontSize:15}}),
+      React.createElement("div",{style:{display:"flex",gap:8,justifyContent:"flex-end"}},
+        React.createElement("button",{className:"icon-btn",onClick:()=>{onEdit(s.id,editText,editTrans);setEditing(false);}},"Update"),
+        React.createElement("button",{className:"icon-btn",onClick:()=>setEditing(false)},"Cancel")
+      )
+    );
+  }
+
   const words=s.text.split(/(\s+)/).map((w,i)=>React.createElement("span",{key:i,className:w.trim()?"word":"",onClick:()=>w.trim()&&onTap(w.replace(/[^a-zA-Z\u0400-\u04FF]/g,""))},w));
   const tw=s.trans.split(/(\s+)/).map((w,i)=>React.createElement("span",{key:"t"+i,className:w.trim()?"word":"",onClick:()=>w.trim()&&onTap(w.replace(/[^a-zA-Z\u0400-\u04FF]/g,""))},w));
   return React.createElement("div",{className:"segment"},
-    React.createElement("button",{className:"delete-btn",onClick:onDel},"x"),
+    React.createElement("div",{style:{position:"absolute",top:8,right:8,display:"flex",gap:6}},
+      React.createElement("button",{className:"delete-btn",style:{position:"static"},onClick:()=>setEditing(true)},"E"),
+      React.createElement("button",{className:"delete-btn",style:{position:"static"},onClick:onDel},"x")
+    ),
     React.createElement("div",{className:"seg-src"},words),
     React.createElement("div",{className:"seg-tgt"},tw),
     React.createElement("div",{className:"seg-meta"},
@@ -138,8 +162,7 @@ function Seg({s,onTap,onDel}){
   );
 }
 
-function LiveSession({source,target,onSave}){
-  const [segs,setSegs]=useState([]);
+function LiveSession({source,target,segs,setSegs,onSave}){
   const [txt,setTxt]=useState("");
   const [listening,setListen]=useState(true);
   const [status,setStatus]=useState("Starting...");
@@ -166,6 +189,7 @@ function LiveSession({source,target,onSave}){
   const send=()=>{if(!input.trim())return;const t=input.trim();translate(t,current,current==="ru"?"en":"ru").then(trans=>{const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})};setSegs(p=>[...p,seg]);setInput("");setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:"smooth"}),100);});};
 
   const del=(id)=>setSegs(p=>p.filter(s=>s.id!==id));
+  const edit=(id,text,trans)=>setSegs(p=>p.map(s=>s.id===id?{...s,text,trans}:s));
 
   const save=()=>{if(!segs.length)return;const title="Session "+new Date().toLocaleString();const data=JSON.stringify(segs);localStorage.setItem("constance_"+Date.now(),JSON.stringify({title,date:Date.now(),data}));if(onSave)onSave();alert("Saved!");};
 
@@ -182,7 +206,7 @@ function LiveSession({source,target,onSave}){
     ),
     React.createElement("div",{className:"main",style:{padding:10,overflowY:"auto"}},
       segs.length===0&&React.createElement("div",{className:"empty"},"Say something in "+(current==="ru"?"Russian":"English")+"..."),
-      segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>del(s.id)})),
+      segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>del(s.id),onEdit:edit})),
       React.createElement("div",{ref:bottom})
     ),
     React.createElement("div",{className:"input-row"},
@@ -267,6 +291,7 @@ function App(){
   const [started,setStarted]=useState(false);
   const [viewer,setViewer]=useState(null);
   const [source,setSource]=useState("ru");
+  const [segs,setSegs]=useState([]);
 
   if(!started)return React.createElement("div",{className:"start-overlay"},
     React.createElement("div",{style:{fontSize:32,fontWeight:700,marginBottom:8}},"Constance"),
@@ -283,7 +308,7 @@ function App(){
       React.createElement("button",{className:"nav-btn "+(tab==="glossary"?"active":""),onClick:()=>setTab("glossary")},"Glossary")
     ),
     viewer?React.createElement(SessionViewer,{item:viewer,onBack:()=>setViewer(null)}):
-    tab==="live"?React.createElement(LiveSession,{source,target:source==="ru"?"en":"ru",onSave:()=>setTab("saved")}):
+    tab==="live"?React.createElement(LiveSession,{source,target:source==="ru"?"en":"ru",segs,setSegs,onSave:()=>setTab("saved")}):
     tab==="saved"?React.createElement(SavedSessions,{onOpen:setViewer}):
     React.createElement(GlossaryPage,null)
   );
