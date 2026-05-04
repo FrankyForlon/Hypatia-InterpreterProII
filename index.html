@@ -324,7 +324,19 @@ function LiveSession({source,target,segs,setSegs,onSave,collab}){
   useEffect(()=>{setCurrent(source);},[source]);
 
   const addSeg=useCallback((seg)=>{
-    setSegs(p=>[...p,seg]);
+    setSegs(p=>{
+      const last=p[p.length-1];
+      if(last&&last.lang===seg.lang){
+        // Progressive build-up: new text contains old text (or vice versa)
+        const isProgressive=seg.text.includes(last.text)||last.text.includes(seg.text);
+        // Quick follow-up within 3 seconds with longer text = same utterance
+        const isQuickFollowUp=(seg.id-last.id)<3000&&seg.text.length>last.text.length;
+        if(isProgressive||isQuickFollowUp){
+          return [...p.slice(0,-1),seg];
+        }
+      }
+      return [...p,seg];
+    });
     if(collab&&collab.connected)collab.send({type:'add',seg});
   },[setSegs,collab]);
 
