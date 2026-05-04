@@ -1,157 +1,101 @@
-# Interpreter Pro
+# Constance Interpreter Pro
 
-A minimalist, phone-first real-time transcription and translation app for interpreters. Built for the University of Utah medical engineering interpreting context.
+A single-file, browser-based real-time transcription and translation app for medical engineering interpreters. Built for Russian-English simultaneous interpreting at the University of Utah research park.
 
-**Live demo:** https://4id5ijcscnr5a.kimi.page
+**Live URL:** https://4id5ijcscnr5a.kimi.page
 
----
+## Features
 
-## What It Does (Right Now)
+- **Real-time speech recognition** — Uses your phone's native Web Speech API (free, no API key)
+- **Bidirectional translation** — Russian to English and English to Russian
+- **Tap-to-define** — Tap any word to see English dictionary definitions + medical glossary matches
+- **20-term medical engineering glossary** — Built-in bilingual terms (Angiography, Biopsy, Catheter, Stent, etc.)
+- **Manual text input** — Type directly into the transcript window
+- **Per-segment delete** — Remove individual transcript segments
+- **Session save/export** — Save to localStorage, export as `.txt` files for client delivery
+- **Works offline after load** — Single HTML file, no build step, no server required
 
-1. **Tap "New Session"** → name your session
-2. **Tap the red mic button** → speak in Russian or English
-3. **See transcription** appear in real-time (source language on top)
-4. **See translation** appear below (target language)
-5. **Tap any word** → dictionary definition + add your own translator notes
-6. **Save the session** → transcript stored on your phone
-7. **Export later** → clean bilingual text file you can clean up and deliver
+## How to use on your phone
 
----
+1. **Open the URL** directly in Chrome or Samsung Internet (not inside an iframe/app preview)
+2. **Allow microphone** when prompted
+3. **Tap "Start Session"**
+4. **Speak in Russian** — you'll see transcription + English translation appear
+5. **Tap "RU <-> EN"** to switch direction
+6. **Tap any word** to see definitions
+7. **Type in the bottom field** and hit the green button to add manual entries
+8. **Tap "Save"** to store the session, **"Export"** in Saved tab to download `.txt`
 
-## Architecture
+## Mic troubleshooting (Samsung / Android)
 
-This is a **single HTML file** that runs entirely in the browser. No build step, no npm install, no server needed.
+If the mic doesn't transcribe:
+1. Open the URL **directly in Chrome** (not Facebook Messenger, not Instagram browser)
+2. Tap the **lock icon** in the address bar → Site Settings → Microphone → Allow
+3. Go to **Phone Settings** → Apps → Chrome → Permissions → Microphone → Allow
+4. **Battery & Device Care** → Battery → Background Usage Limits → **Don't restrict Chrome**
+5. Refresh the page and tap Start Session again
 
-```
-Your Phone (Chrome or Samsung Internet)
-    |
-    | Web Speech API (free, built into browser)
-    v
-Real-time speech-to-text (Russian or English)
-    |
-    | LibreTranslate API (free, no key needed)
-    v
-Translation (English <-> Russian)
-    |
-    | FreeDictionary API (free, no key needed)
-    v
-Tap-to-define word lookup
-    |
-    | localStorage
-    v
-Sessions saved on your phone
-```
+## Hosting on prettyparasites.ai
 
-**Why a single HTML file?**
-- Works anywhere with cell/data (no laptop needed)
-- No app store approval
-- No backend server to maintain
-- Works offline after first load (PWA)
-- Zero cost to run
+Since this is a single static HTML file, you can host it anywhere:
 
----
+### Option A: Upload via cPanel File Manager
+1. Log in to your hosting cPanel
+2. Open **File Manager**
+3. Navigate to `public_html/` (or the subdomain folder for prettyparasites.ai)
+4. Click **Upload** and select `interpreter-pro.html`
+5. Rename it to `index.html` if you want it at the root
+6. Access at `https://prettyparasites.ai/interpreter-pro.html` or `https://prettyparasites.ai/`
+
+### Option B: Upload via FTP
+Use FileZilla or any FTP client:
+- Host: your cPanel FTP host
+- Upload `interpreter-pro.html` to `public_html/`
+
+### Option C: GitHub Pages (free)
+1. Push this repo to GitHub
+2. Go to Settings → Pages → Source: Deploy from a branch → master /root
+3. Site will be at `https://frankyforlon.github.io/InterpreterPro`
+
+## Tech Stack
+
+- React 18 (CDN UMD build)
+- Web Speech API (`webkitSpeechRecognition`)
+- MyMemory Translation API (free, no key)
+- FreeDictionary API (free, no key)
+- No build tools. No JSX. No bundler. Just one HTML file.
 
 ## File Structure
 
 ```
 InterpreterPro/
-  index.html      # The entire app (React + CSS + JS in one file)
-  README.md       # This file
-  server/         # Optional: Node.js backend for ElevenLabs integration
-    server.js
-    package.json
-    .env.example
+├── index.html          # The entire app (19KB)
+├── static/
+│   └── index.html      # Copy for deployment
+├── server/             # Optional collaboration backend (Node.js)
+│   ├── collab-server.js
+│   └── server.js
+├── README.md
+└── .gitignore
 ```
 
----
+## ElevenLabs Integration (future)
 
-## Quick Start (No Build)
+Your ElevenLabs API key is currently **not used** because browser WebSocket security blocks raw API keys. To add ElevenLabs Scribe v2 Realtime later:
+1. Set up a small Node.js proxy server (see `server/server.js`)
+2. The proxy exchanges your API key for a temporary token
+3. The browser connects to ElevenLabs via the token
 
-### Option A: Just open the file
-1. Download `index.html`
-2. Double-click it — it opens in your browser
-3. Tap "New Session" → start speaking
+For now, the built-in Web Speech API works well for phone-based interpreting and is completely free.
 
-### Option B: Deploy to the web (5 minutes)
-1. Push this repo to GitHub
-2. Go to **Settings > Pages**
-3. Set source to **main branch**
-4. Your app is live at `https://frankyforlon.github.io/InterpreterPro`
+## Adding more glossary terms
 
-### Option C: Run locally with live reload
-```bash
-npx serve .
-# Opens at http://localhost:3000
+Edit the `GLOSSARY` array at the top of `index.html`:
+
+```js
+{en:"Your Term", ru:"Your Russian", def:"Your definition"}
 ```
-
----
-
-## For Cursor Agent / Codex
-
-**Tech stack:** React 18 (CDN), vanilla CSS, Web Speech API, no build tools.
-
-**Key components in `index.html`:**
-- `useWebSpeech()` — hook wrapping `webkitSpeechRecognition` for real-time transcription
-- `translateText()` — fetches LibreTranslate for Russian <-> English
-- `lookupWord()` — fetches FreeDictionary API for English definitions
-- `WordModal` — tap-to-define modal with translator notes (Lingvo-style)
-- `LiveSession` — split-pane view: source language top, target language bottom
-- `SessionViewer` — saved transcript viewer with export/print
-
-**All state is in `localStorage`** — no backend needed for basic functionality.
-
----
-
-## Roadmap
-
-### Urgent (tomorrow morning)
-- [x] Russian/English transcription
-- [x] Real-time translation
-- [x] Tap-to-define with translator notes
-- [x] Save sessions
-- [x] Export as text file
-- [ ] DeepL integration (better translation quality)
-- [ ] Medical engineering glossary pre-loading
-- [ ] Auto-detect which language is being spoken
-
-### Near-term
-- [ ] ElevenLabs Scribe v2 backend (higher quality ASR when laptop is available)
-- [ ] Export as clean bilingual PDF
-- [ ] Upload reference documents (like NotebookLM)
-- [ ] Voice output (Constance, Benjamin, Jerome voices)
-- [ ] Save to Google Drive / cloud export
-- [ ] Session sharing via link
-
-### Long-term vision
-- [ ] Multi-language support (add any language pair)
-- [ ] Voice cloning for the interpreter
-- [ ] Educational mode — practice conversations with AI agents
-- [ ] Film/lecture mode — AI has read the script, discusses in foreign language
-- [ ] Voice mode — speak naturally, AI responds with cloned voice
-- [ ] Community dictionary — shared translator notes
-
----
-
-## ElevenLabs Integration (Optional Backend)
-
-The `server/` folder contains a Node.js backend that properly integrates with ElevenLabs Scribe v2 Realtime. This gives higher transcription quality but **requires your laptop to be on the same network as your phone** (or deployed to a cloud server).
-
-**Why it's optional:** The Web Speech API in the browser is free and works well enough for field interpreting. ElevenLabs adds quality but requires infrastructure.
-
-To run the ElevenLabs backend:
-```bash
-cd server
-cp .env.example .env
-# Edit .env with your ELEVENLABS_API_KEY
-npm install
-node server.js
-# Opens at http://localhost:3001
-```
-
-**Note:** ElevenLabs Scribe v2 Realtime requires a **single-use token** generated server-side. The raw API key cannot be used from the browser for security reasons. The `server.js` handles this token generation.
-
----
 
 ## License
 
-MIT — use it, fork it, build on it.
+MIT — use freely for your interpreting work.
