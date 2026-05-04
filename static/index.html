@@ -103,29 +103,89 @@ async function translate(text,source,target){if(!text||text.length<2)return text
 
 async function fetchDefinition(word){try{const r=await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(word.toLowerCase()));const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].meanings){return d[0].meanings.map(m=>({pos:m.partOfSpeech,defs:m.definitions.slice(0,2).map(x=>x.definition)}));}}catch(e){}return null;}
 
-function findGlossary(word){const w=word.toLowerCase().replace(/[^a-z]/gi,"");if(!w)return null;return GLOSSARY.find(g=>g.en.toLowerCase()===w||g.en.toLowerCase().includes(w));}
+async function fetchWikipedia(word){try{const r=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(word));const d=await r.json();if(d.extract)return d.extract;}catch(e){}return null;}
+
+function findGlossary(word){
+  const w=word.toLowerCase();
+  if(/[\u0400-\u04FF]/.test(w)){
+    return GLOSSARY.find(g=>{
+      const gru=g.ru.toLowerCase();
+      return gru===w||gru.includes(w)||w.includes(gru);
+    });
+  }
+  const clean=w.replace(/[^a-z]/gi,"");
+  if(!clean)return null;
+  return GLOSSARY.find(g=>{
+    const gen=g.en.toLowerCase();
+    return gen===clean||gen.includes(clean)||clean.includes(gen);
+  });
+}
 
 function WordModal({word,onClose}){
-  const [data,setData]=useState(null);
-  const [ruTrans,setRuTrans]=useState(null);
+  const [enDefs,setEnDefs]=useState(null);
+  const [wiki,setWiki]=useState(null);
+  const [toEn,setToEn]=useState(null);
+  const [toRu,setToRu]=useState(null);
+  const [loading,setLoading]=useState(true);
   const gloss=findGlossary(word);
+  const isRu=/[\u0400-\u04FF]/.test(word);
+  const stripTag=s=>s?s.replace(/^\[[A-Z]{2}\]\s*/,""):s;
+
   useEffect(()=>{
-    fetchDefinition(word).then(d=>setData(d));
-    const hasCyrillic=/[\u0400-\u04FF]/.test(word);
-    if(hasCyrillic)translate(word,"ru","en").then(t=>setRuTrans(t));
+    setEnDefs(null);setWiki(null);setToEn(null);setToRu(null);setLoading(true);
+    async function load(){
+      if(isRu){
+        const en=await translate(word,"ru","en");
+        setToEn(en);
+        const clean=stripTag(en);
+        const defs=await fetchDefinition(clean);
+        if(defs)setEnDefs(defs);
+        else{const w=await fetchWikipedia(clean);if(w)setWiki(w);}
+      }else{
+        const defs=await fetchDefinition(word);
+        if(defs)setEnDefs(defs);
+        else{const w=await fetchWikipedia(word);if(w)setWiki(w);}
+        const ru=await translate(word,"en","ru");
+        setToRu(ru);
+      }
+      setLoading(false);
+    }
+    load();
   },[word]);
+
   return React.createElement("div",{className:"modal",onClick:onClose},
     React.createElement("div",{className:"modal-box",onClick:e=>e.stopPropagation()},
       React.createElement("button",{className:"modal-close",onClick:onClose},"X"),
       React.createElement("div",{className:"dict-word"},word),
-      ruTrans&&React.createElement("div",{className:"dict-ru"},"Translation: "+ruTrans),
-      gloss&&React.createElement("div",{className:"dict-ru"},gloss.ru),
-      gloss&&React.createElement("div",{className:"dict-def"},gloss.def),
-      data&&data.map((m,i)=>React.createElement("div",{key:i,style:{marginBottom:14}},
+
+      loading&&React.createElement("div",{className:"dict-def"},"Looking up..."),
+
+      gloss&&React.createElement("div",{style:{background:"#1a3a1a",padding:10,borderRadius:8,marginBottom:12,marginTop:4}},
+        React.createElement("div",{style:{color:"#22c55e",fontSize:12,fontWeight:600,marginBottom:4}},"GLOSSARY MATCH"),
+        React.createElement("div",{style:{color:"#fff",fontSize:15,fontWeight:600}},isRu?gloss.en:gloss.ru),
+        React.createElement("div",{className:"dict-def",style:{marginBottom:0,marginTop:4}},gloss.def)
+      ),
+
+      isRu?(toEn&&React.createElement("div",{className:"dict-ru"},
+        React.createElement("span",{style:{color:"#888"}},"Translation: "),
+        stripTag(toEn)
+      )):(toRu&&React.createElement("div",{className:"dict-ru"},
+        React.createElement("span",{style:{color:"#888"}},"Russian: "),
+        stripTag(toRu)
+      )),
+
+      enDefs&&enDefs.map((m,i)=>React.createElement("div",{key:i,style:{marginBottom:14}},
         React.createElement("div",{className:"dict-pos"},m.pos),
         m.defs.map((def,j)=>React.createElement("div",{key:j,className:"dict-def"},"• "+def))
       )),
-      !data&&!gloss&&!ruTrans&&React.createElement("div",{className:"dict-def"},"No definition found. Try an English word, or check the Glossary tab.")
+
+      wiki&&React.createElement("div",{style:{marginBottom:14}},
+        React.createElement("div",{className:"dict-pos"},"Wikipedia"),
+        React.createElement("div",{className:"dict-def"},wiki)
+      ),
+
+      !loading&&!gloss&&!enDefs&&!wiki&&!toEn&&!toRu&&
+        React.createElement("div",{className:"dict-def"},"No results found. Try another word or check the Glossary tab.")
     )
   );
 }
@@ -150,7 +210,7 @@ function Seg({s,onTap,onDel,onEdit}){
   const tw=s.trans.split(/(\s+)/).map((w,i)=>React.createElement("span",{key:"t"+i,className:w.trim()?"word":"",onClick:()=>w.trim()&&onTap(w.replace(/[^a-zA-Z\u0400-\u04FF]/g,""))},w));
   return React.createElement("div",{className:"segment"},
     React.createElement("div",{style:{position:"absolute",top:8,right:8,display:"flex",gap:6}},
-      React.createElement("button",{className:"delete-btn",style:{position:"static"},onClick:()=>setEditing(true)},"E"),
+      React.createElement("button",{className:"delete-btn",style:{position:"static",background:"#2563eb",color:"#fff"},onClick:()=>setEditing(true)},"E"),
       React.createElement("button",{className:"delete-btn",style:{position:"static"},onClick:onDel},"x")
     ),
     React.createElement("div",{className:"seg-src"},words),
