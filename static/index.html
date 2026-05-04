@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Constance | Interpreter Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#020617;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+#root{height:100%}
+.no-scrollbar::-webkit-scrollbar{display:none}
+.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:1}100%{transform:scale(1.5);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.recording-pulse{position:relative}
+.recording-pulse::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid #ef4444;animation:pulse-ring 1.5s ease-out infinite}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.modal-panel{background:#0f172a;width:100%;border-radius:16px 16px 0 0;border:1px solid #334155;display:flex;flex-direction:column;max-height:85vh}
+@media(min-width:640px){.modal-bg{align-items:center}.modal-panel{border-radius:16px;max-width:480px;max-height:80vh;border-bottom:1px solid #334155}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useRef}=React;
+
+// ====== MEDICAL ENGINEERING GLOSSARY (50+ terms) ======
+const G={
+'biocompatibility':{r:'\u0431\u0438\u043e\u0441\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u043e\u0441\u0442\u044c',d:'Ability of a material to perform with an appropriate host response. \u0421\u043f\u043e\u0441\u043e\u0431\u043d\u043e\u0441\u0442\u044c \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u0430 \u0432\u0437\u0430\u0438\u043c\u043e\u0434\u0435\u0439\u0441\u0442\u0432\u043e\u0432\u0430\u0442\u044c \u0441 \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u043c\u043e\u043c \u0431\u0435\u0437 \u043e\u0442\u0440\u0438\u0446\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u0440\u0435\u0430\u043a\u0446\u0438\u0439.'},
+'hemocompatibility':{r:'\u0433\u0435\u043c\u043e\u0441\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u043e\u0441\u0442\u044c',d:'Compatibility with blood \u2014 no hemolysis or thrombosis. \u0421\u043e\u0432\u043c\u0435\u0441\u0442\u0438\u043c\u043e\u0441\u0442\u044c \u0441 \u043a\u0440\u043e\u0432\u044c\u044e \u2014 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u0433\u0435\u043c\u043e\u043b\u0438\u0437\u0430 \u0438 \u0442\u0440\u043e\u043c\u0431\u043e\u0437\u0430.'},
+'thrombogenicity':{r:'\u0442\u0440\u043e\u043c\u0431\u043e\u0433\u0435\u043d\u043d\u043e\u0441\u0442\u044c',d:'Tendency of a material to induce thrombus (blood clot) formation. \u0421\u043f\u043e\u0441\u043e\u0431\u043d\u043e\u0441\u0442\u044c \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u0430 \u0438\u043d\u0434\u0443\u0446\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043e\u0431\u0440\u0430\u0437\u043e\u0432\u0430\u043d\u0438\u0435 \u0442\u0440\u043e\u043c\u0431\u0430.'},
+'hemolysis':{r:'\u0433\u0435\u043c\u043e\u043b\u0438\u0437',d:'Destruction of red blood cells. \u0420\u0430\u0437\u0440\u0443\u0448\u0435\u043d\u0438\u0435 \u044d\u0440\u0438\u0442\u0440\u043e\u0446\u0438\u0442\u043e\u0432.'},
+'electrospinning':{r:'\u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435',d:'Fiber production using electric force to draw polymer threads to nanometer diameters. \u041f\u043e\u043b\u0443\u0447\u0435\u043d\u0438\u0435 \u0432\u043e\u043b\u043e\u043a\u043e\u043d \u0441 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435\u043c \u044d\u043b\u0435\u043a\u0442\u0440\u0438\u0447\u0435\u0441\u043a\u043e\u0439 \u0441\u0438\u043b\u044b \u0434\u043b\u044f \u0432\u044b\u0442\u044f\u0433\u0438\u0432\u0430\u043d\u0438\u044f \u043f\u043e\u043b\u0438\u043c\u0435\u0440\u043d\u044b\u0445 \u043d\u0438\u0442\u0435\u0439 \u0434\u043e \u043d\u0430\u043d\u043e\u043c\u0435\u0442\u0440\u043e\u0432.'},
+'scaffold':{r:'\u0441\u043a\u0430\u0444\u0444\u043e\u043b\u0434',d:'Temporary structure used to support tissue growth in tissue engineering. \u0412\u0440\u0435\u043c\u0435\u043d\u043d\u0430\u044f \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u0430 \u0434\u043b\u044f \u043f\u043e\u0434\u0434\u0435\u0440\u0436\u043a\u0438 \u0440\u043e\u0441\u0442\u0430 \u0442\u043a\u0430\u043d\u0435\u0439.'},
+'stent':{r:'\u0441\u0442\u0435\u043d\u0442',d:'Tiny tube inserted into a narrowed blood vessel to keep it open. \u041c\u0438\u043a\u0440\u043e\u0441\u043a\u043e\u043f\u0438\u0447\u0435\u0441\u043a\u0430\u044f \u0442\u0440\u0443\u0431\u043a\u0430, \u0432\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u043c\u0430\u044f \u0432 \u0441\u0443\u0436\u0435\u043d\u043d\u044b\u0439 \u0441\u043e\u0441\u0443\u0434 \u0434\u043b\u044f \u0435\u0433\u043e \u043f\u0440\u043e\u0445\u043e\u0434\u0438\u043c\u043e\u0441\u0442\u0438.'},
+'catheter':{r:'\u043a\u0430\u0442\u0435\u0442\u0435\u0440',d:'Thin tube inserted into the body to deliver or drain fluids. \u0422\u043e\u043d\u043a\u0430\u044f \u0442\u0440\u0443\u0431\u043a\u0430, \u0432\u0432\u043e\u0434\u0438\u043c\u0430\u044f \u0432 \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u043c \u0434\u043b\u044f \u0432\u0432\u0435\u0434\u0435\u043d\u0438\u044f/\u0432\u044b\u0432\u0435\u0434\u0435\u043d\u0438\u044f \u0436\u0438\u0434\u043a\u043e\u0441\u0442\u0435\u0439.'},
+'endothelialization':{r:'\u044d\u043d\u0434\u043e\u0442\u0435\u043b\u0438\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u044f',d:'Process of endothelial cell growth over an implanted material. \u041f\u0440\u043e\u0446\u0435\u0441\u0441 \u0440\u043e\u0441\u0442\u0430 \u044d\u043d\u0434\u043e\u0442\u0435\u043b\u0438\u0430\u043b\u044c\u043d\u044b\u0445 \u043a\u043b\u0435\u0442\u043e\u043a \u043f\u043e\u0432\u0435\u0440\u0445 \u0438\u043c\u043f\u043b\u0430\u043d\u0442\u0430.'},
+'neointimal':{r:'\u043d\u0435\u043e\u0438\u043d\u0442\u0438\u043c\u0430',d:'New intimal tissue formed after vascular injury. \u041d\u043e\u0432\u0430\u044f \u0438\u043d\u0442\u0438\u043c\u0430\u043b\u044c\u043d\u0430\u044f \u0442\u043a\u0430\u043d\u044c, \u043e\u0431\u0440\u0430\u0437\u043e\u0432\u0430\u0432\u0448\u0430\u044f\u0441\u044c \u043f\u043e\u0441\u043b\u0435 \u0441\u043e\u0441\u0443\u0434\u0438\u0441\u0442\u043e\u0439 \u0442\u0440\u0430\u0432\u043c\u044b.'},
+'hyperplasia':{r:'\u0433\u0438\u043f\u0435\u0440\u043f\u043b\u0430\u0437\u0438\u044f',d:'Excessive cell proliferation. \u0427\u0440\u0435\u0437\u043c\u0435\u0440\u043d\u0430\u044f \u043f\u0440\u043e\u043b\u0438\u0444\u0435\u0440\u0430\u0446\u0438\u044f \u043a\u043b\u0435\u0442\u043e\u043a.'},
+'restenosis':{r:'\u0440\u0435\u0441\u0442\u0435\u043d\u043e\u0437',d:'Re-narrowing of a blood vessel after treatment. \u041f\u043e\u0432\u0442\u043e\u0440\u043d\u043e\u0435 \u0441\u0443\u0436\u0435\u043d\u0438\u0435 \u0441\u043e\u0441\u0443\u0434\u0430 \u043f\u043e\u0441\u043b\u0435 \u043b\u0435\u0447\u0435\u043d\u0438\u044f.'},
+'porosity':{r:'\u043f\u043e\u0440\u0438\u0441\u0442\u043e\u0441\u0442\u044c',d:'Ratio of void space to total volume in a material. \u041e\u0442\u043d\u043e\u0448\u0435\u043d\u0438\u0435 \u043e\u0431\u044a\u0435\u043c\u0430 \u043f\u0443\u0441\u0442\u043e\u0442 \u043a \u043e\u0431\u0449\u0435\u043c\u0443 \u043e\u0431\u044a\u0435\u043c\u0443.'},
+'dynamic':{r:'\u0434\u0435\u0433\u0440\u0430\u0434\u0430\u0446\u0438\u044f',d:'Breakdown of a material over time. \u0420\u0430\u0437\u0440\u0443\u0448\u0435\u043d\u0438\u0435 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u0430 \u0441\u043e \u0432\u0440\u0435\u043c\u0435\u043d\u0435\u043c.'},
+'shear stress':{r:'\u043a\u0430\u0441\u0430\u0442\u0435\u043b\u044c\u043d\u043e\u0435 \u043d\u0430\u043f\u0440\u044f\u0436\u0435\u043d\u0438\u0435',d:'Component of stress coplanar with a material cross section. \u041a\u043e\u043c\u043f\u043e\u043d\u0435\u043d\u0442 \u043d\u0430\u043f\u0440\u044f\u0436\u0435\u043d\u0438\u044f, \u043f\u0430\u0440\u0430\u043b\u043b\u0435\u043b\u044c\u043d\u044b\u0439 \u043f\u043b\u043e\u0441\u043a\u043e\u0441\u0442\u0438 \u0441\u0435\u0447\u0435\u043d\u0438\u044f.'},
+'morphogenetic':{r:'\u043c\u043e\u0440\u0444\u043e\u0433\u0435\u043d\u0435\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439',d:'Relating to the development of body form and structure. \u0421\u0432\u044f\u0437\u0430\u043d\u043d\u044b\u0439 \u0441 \u0440\u0430\u0437\u0432\u0438\u0442\u0438\u0435\u043c \u0444\u043e\u0440\u043c\u044b \u0438 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u044b.'},
+'planaria':{r:'\u043f\u043b\u0430\u043d\u0430\u0440\u0438\u0439',d:'Flatworm capable of regenerating lost body parts. \u041f\u043b\u043e\u0441\u043a\u0438\u0439 \u0447\u0435\u0440\u0432\u044c, \u0441\u043f\u043e\u0441\u043e\u0431\u043d\u044b\u0439 \u0440\u0435\u0433\u0435\u043d\u0435\u0440\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u043f\u043e\u0442\u0435\u0440\u044f\u043d\u043d\u044b\u0435 \u0447\u0430\u0441\u0442\u0438 \u0442\u0435\u043b\u0430.'},
+'bioelectricity':{r:'\u0431\u0438\u043e\u044d\u043b\u0435\u043a\u0442\u0440\u0438\u0447\u0435\u0441\u0442\u0432\u043e',d:'Electrical phenomena in living tissues. \u042d\u043b\u0435\u043a\u0442\u0440\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u044f\u0432\u043b\u0435\u043d\u0438\u044f \u0432 \u0436\u0438\u0432\u044b\u0445 \u0442\u043a\u0430\u043d\u044f\u0445.'},
+'transmembrane':{r:'\u0442\u0440\u0430\u043d\u0441\u043c\u0435\u043c\u0431\u0440\u0430\u043d\u043d\u044b\u0439',d:'Crossing or spanning a cell membrane. \u041f\u0435\u0440\u0435\u0441\u0435\u043a\u0430\u044e\u0449\u0438\u0439 \u043a\u043b\u0435\u0442\u043e\u0447\u043d\u0443\u044e \u043c\u0435\u043c\u0431\u0440\u0430\u043d\u0443.'},
+'potential gradient':{r:'\u0433\u0440\u0430\u0434\u0438\u0435\u043d\u0442 \u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b\u0430',d:'Change in electrical potential over distance. \u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u044d\u043b\u0435\u043a\u0442\u0440\u0438\u0447\u0435\u0441\u043a\u043e\u0433\u043e \u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b\u0430 \u043d\u0430 \u0440\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0438.'},
+'ion channel':{r:'\u0438\u043e\u043d\u043d\u044b\u0439 \u043a\u0430\u043d\u0430\u043b',d:'Pore-forming protein allowing ions to pass through a cell membrane. \u0411\u0435\u043b\u043e\u043a, \u043e\u0431\u0440\u0430\u0437\u0443\u044e\u0449\u0438\u0439 \u043f\u043e\u0440\u044b \u0434\u043b\u044f \u043f\u0440\u043e\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u044f \u0438\u043e\u043d\u043e\u0432.'},
+'expression':{r:'\u044d\u043a\u0441\u043f\u0440\u0435\u0441\u0441\u0438\u044f',d:'Process by which genetic instructions are used to synthesize gene products. \u041f\u0440\u043e\u0446\u0435\u0441\u0441 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u044f \u0433\u0435\u043d\u0435\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0445 \u0438\u043d\u0441\u0442\u0440\u0443\u043a\u0446\u0438\u0439.'},
+'reprogramming':{r:'\u043f\u0435\u0440\u0435\u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u0435',d:'Changing the developmental fate of a cell. \u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u0440\u0430\u0437\u0432\u0438\u0442\u0438\u044f \u043a\u043b\u0435\u0442\u043a\u0438.'},
+'outcomes':{r:'\u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b',d:'Results or consequences. \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u044b \u0438\u043b\u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u0441\u0442\u0432\u0438\u044f.'},
+'regenerating':{r:'\u0440\u0435\u0433\u0435\u043d\u0435\u0440\u0438\u0440\u0443\u044e\u0449\u0438\u0439',d:'Growing again after loss or damage. \u0412\u043e\u0441\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u044e\u0449\u0438\u0439\u0441\u044f \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u0432\u0440\u0435\u0436\u0434\u0435\u043d\u0438\u044f.'},
+'tissue engineering':{r:'\u0438\u043d\u0436\u0435\u043d\u0435\u0440\u0438\u044f \u0442\u043a\u0430\u043d\u0435\u0439',d:'Use of cells, materials, and engineering to repair tissues. \u0418\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043d\u0438\u0435 \u043a\u043b\u0435\u0442\u043e\u043a \u0438 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u043e\u0432 \u0434\u043b\u044f \u0432\u043e\u0441\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u0438\u044f.'},
+'stem cell':{r:'\u0441\u0442\u043e\u043c\u0431\u0443\u0440\u044b\u0435 \u043a\u043b\u0435\u0442\u043a\u0438',d:'Undifferentiated cells capable of developing into specialized types. \u041d\u0435\u0434\u0438\u0444\u0444\u0435\u0440\u0435\u043d\u0446\u0438\u0440\u043e\u0432\u0430\u043d\u043d\u044b\u0435 \u043a\u043b\u0435\u0442\u043a\u0438.'},
+'polymer':{r:'\u043f\u043e\u043b\u0438\u043c\u0435\u0440',d:'Substance with large molecules of repeated subunits. \u0412\u0435\u0449\u0435\u0441\u0442\u0432\u043e \u0441 \u043a\u0440\u0443\u043f\u043d\u044b\u043c\u0438 \u043c\u043e\u043b\u0435\u043a\u0443\u043b\u0430\u043c\u0438 \u0438\u0437 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0438\u0445\u0441\u044f \u043f\u043e\u0434\u0435\u0434\u0438\u043d\u0438\u0446.'},
+'hydrogel':{r:'\u0433\u0438\u0434\u0440\u043e\u0433\u0435\u043b\u044c',d:'Network of hydrophilic polymer chains. \u0421\u0435\u0442\u044c \u0433\u0438\u0434\u0440\u043e\u0444\u0438\u043b\u044c\u043d\u044b\u0445 \u043f\u043e\u043b\u0438\u043c\u0435\u0440\u043d\u044b\u0445 \u0446\u0435\u043f\u0435\u0439.'},
+'implant':{r:'\u0438\u043c\u043f\u043b\u0430\u043d\u0442\u0430\u0442',d:'Medical device to replace a missing biological structure. \u041c\u0435\u0434\u0438\u0446\u0438\u043d\u0441\u043a\u043e\u0435 \u0438\u0437\u0434\u0435\u043b\u0438\u0435 \u0434\u043b\u044f \u0437\u0430\u043c\u0435\u043d\u044b.'},
+'fibroblast':{r:'\u0444\u0438\u0431\u0440\u043e\u0431\u043b\u0430\u0441\u0442',d:'Cell in connective tissue that produces collagen. \u041a\u043b\u0435\u0442\u043a\u0430, \u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u044f\u0449\u0430\u044f \u043a\u043e\u043b\u043b\u0430\u0433\u0435\u043d.'},
+'collagen':{r:'\u043a\u043e\u043b\u043b\u0430\u0433\u0435\u043d',d:'Main structural protein in connective tissues. \u041e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u043d\u044b\u0439 \u0431\u0435\u043b\u043e\u043a.'},
+'matrix':{r:'\u043c\u0430\u0442\u0440\u0438\u0446\u0430',d:'Structural network surrounding cells. \u0421\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u043d\u0430\u044f \u0441\u0435\u0442\u044c \u0432\u043e\u043a\u0440\u0443\u0433 \u043a\u043b\u0435\u0442\u043e\u043a.'},
+'differentiation':{r:'\u0434\u0438\u0444\u0444\u0435\u0440\u0435\u043d\u0446\u0438\u0440\u043e\u0432\u043a\u0430',d:'Process by which a cell changes type. \u041f\u0440\u043e\u0446\u0435\u0441\u0441 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f \u0442\u0438\u043f\u0430 \u043a\u043b\u0435\u0442\u043a\u0438.'},
+'proliferation':{r:'\u043f\u0440\u043e\u043b\u0438\u0444\u0435\u0440\u0430\u0446\u0438\u044f',d:'Rapid increase in cell numbers. \u0411\u044b\u0441\u0442\u0440\u043e\u0435 \u0443\u0432\u0435\u043b\u0438\u0447\u0435\u043d\u0438\u0435 \u0447\u0438\u0441\u043b\u0430 \u043a\u043b\u0435\u0442\u043e\u043a.'},
+'apoptosis':{r:'\u0430\u043f\u043e\u043f\u0442\u043e\u0437',d:'Programmed cell death. \u041f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0438\u0440\u0443\u0435\u043c\u0430\u044f \u043a\u043b\u0435\u0442\u043e\u0447\u043d\u0430\u044f \u0441\u043c\u0435\u0440\u0442\u044c.'},
+'in vitro':{r:'in vitro',d:'In a lab environment outside a living organism. \u0412 \u043b\u0430\u0431\u043e\u0440\u0430\u0442\u043e\u0440\u043d\u044b\u0445 \u0443\u0441\u043b\u043e\u0432\u0438\u044f\u0445.'},
+'in vivo':{r:'in vivo',d:'Inside a living organism. \u0412\u043d\u0443\u0442\u0440\u0438 \u0436\u0438\u0432\u043e\u0433\u043e \u043e\u0440\u0433\u0430\u043d\u0438\u0437\u043c\u0430.'},
+'neuronal':{r:'\u043d\u0435\u0439\u0440\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0439',d:'Relating to neurons. \u0421\u0432\u044f\u0437\u0430\u043d\u043d\u044b\u0439 \u0441 \u043d\u0435\u0439\u0440\u043e\u043d\u0430\u043c\u0438.'},
+'membrane':{r:'\u043c\u0435\u043c\u0431\u0440\u0430\u043d\u0430',d:'Thin layer forming the outer boundary of a cell. \u0422\u043e\u043d\u043a\u0438\u0439 \u0441\u043b\u043e\u0439, \u043e\u0431\u0440\u0430\u0437\u0443\u044e\u0449\u0438\u0439 \u0433\u0440\u0430\u043d\u0438\u0446\u0443 \u043a\u043b\u0435\u0442\u043a\u0438.'},
+'action potential':{r:'\u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u044f',d:'Rapid rise and fall in membrane potential. \u0411\u044b\u0441\u0442\u0440\u043e\u0435 \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u043c\u0435\u043c\u0431\u0440\u0430\u043d\u043d\u043e\u0433\u043e \u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b\u0430.'},
+'potential':{r:'\u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b',d:'Voltage difference across a membrane. \u0420\u0430\u0437\u043d\u043e\u0441\u0442\u044c \u043f\u043e\u0442\u0435\u043d\u0446\u0438\u0430\u043b\u043e\u0432 \u0447\u0435\u0440\u0435\u0437 \u043c\u0435\u043c\u0431\u0440\u0430\u043d\u0443.'},
+'graft':{r:'\u0433\u0440\u0430\u0444\u0442',d:'Living tissue transplanted from one site to another. \u0416\u0438\u0432\u0430\u044f \u0442\u043a\u0430\u043d\u044c, \u043f\u0435\u0440\u0435\u0441\u0430\u0436\u0435\u043d\u043d\u0430\u044f \u0441 \u043e\u0434\u043d\u043e\u0433\u043e \u0443\u0447\u0430\u0441\u0442\u043a\u0430 \u043d\u0430 \u0434\u0440\u0443\u0433\u043e\u0439.'},
+'extracellular':{r:'\u0432\u043d\u0435\u043a\u043b\u0435\u0442\u043e\u0447\u043d\u044b\u0439',d:'Outside the cell. \u0412\u043d\u0435 \u043a\u043b\u0435\u0442\u043a\u0438.'},
+'intracellular':{r:'\u0432\u043d\u0443\u0442\u0440\u0438\u043a\u043b\u0435\u0442\u043e\u0447\u043d\u044b\u0439',d:'Inside the cell. \u0412\u043d\u0443\u0442\u0440\u0438 \u043a\u043b\u0435\u0442\u043a\u0438.'},
+'nanofiber':{r:'\u043d\u0430\u043d\u043e\u0432\u043e\u043b\u043e\u043a\u043d\u043e',d:'Fiber with diameter in the nanometer range. \u0412\u043e\u043b\u043e\u043a\u043d\u043e \u0434\u0438\u0430\u043c\u0435\u0442\u0440\u043e\u043c \u0432 \u043d\u0430\u043d\u043e\u043c\u0435\u0442\u0440\u0430\u0445.'},
+'microporous':{r:'\u043c\u0438\u043a\u0440\u043e\u043f\u043e\u0440\u0438\u0441\u0442\u044b\u0439',d:'Having pores in the micrometer range. \u0418\u043c\u0435\u044e\u0449\u0438\u0439 \u043f\u043e\u0440\u044b \u0432 \u043c\u0438\u043a\u0440\u043e\u043c\u0435\u0442\u0440\u0430\u0445.'},
+'osteointegration':{r:'\u043e\u0441\u0442\u0435\u043e\u0438\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u044f',d:'Direct structural connection between living bone and implant. \u041f\u0440\u044f\u043c\u0430\u044f \u0441\u0442\u0440\u0443\u043a\u0442\u0443\u0440\u043d\u0430\u044f \u0441\u0432\u044f\u0437\u044c \u043c\u0435\u0436\u0434\u0443 \u043a\u043e\u0441\u0442\u044c\u044e \u0438 \u0438\u043c\u043f\u043b\u0430\u043d\u0442\u043e\u043c.'},
+'wear debris':{r:'\u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b \u0438\u0437\u043d\u043e\u0441\u0430',d:'Particles released from implant surfaces due to friction. \u0427\u0430\u0441\u0442\u0438\u0446\u044b, \u043e\u0442\u0434\u0435\u043b\u044f\u044e\u0449\u0438\u0435\u0441\u044f \u043e\u0442 \u043f\u043e\u0432\u0435\u0440\u0445\u043d\u043e\u0441\u0442\u0438 \u0438\u043c\u043f\u043b\u0430\u043d\u0442\u0430.'},
+'fatigue':{r:'\u0443\u0441\u0442\u0430\u043b\u043e\u0441\u0442\u044c',d:'Failure of a material under repeated cyclic loading. \u0420\u0430\u0437\u0440\u0443\u0448\u0435\u043d\u0438\u0435 \u043c\u0430\u0442\u0435\u0440\u0438\u0430\u043b\u0430 \u043f\u0440\u0438 \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u044b\u0445 \u043d\u0430\u0433\u0440\u0443\u0437\u043a\u0430\u0445.'},
+'creep':{r:'\u043f\u043e\u043b\u0437\u0443\u0447\u0435\u0441\u0442\u044c',d:'Time-dependent deformation under constant stress. \u0414\u0435\u0444\u043e\u0440\u043c\u0430\u0446\u0438\u044f, \u0437\u0430\u0432\u0438\u0441\u044f\u0449\u0430\u044f \u043e\u0442 \u0432\u0440\u0435\u043c\u0435\u043d\u0438.'},
+};
+
+// Glossary lookup helper
+function gLook(w,lang){
+  const c=w.toLowerCase().replace(/[^a-z\u0430-\u044f\u0451]/g,'');
+  if(!c)return null;
+  for(const[en,e]of Object.entries(G)){
+    const ec=en.toLowerCase().replace(/[^a-z]/g,'');
+    const rc=e.r.toLowerCase().replace(/[^\u0430-\u044f\u0451]/g,'');
+    if(c===ec||c===rc)return{word:w,en:en,ru:e.r,def:e.d,fromGlossary:true};
+  }
+  return null;
+}
+
+// ====== ICONS ======
+function Ico({d,s=20}){return<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{d}</svg>}
+const MicIcon=({s=20})=><Ico s={s} d={<><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></>}/>;
+const MicOffIcon=({s=20})=><Ico s={s} d={<><line x1="2" y1="2" x2="22" y2="22"/><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></>}/>;
+const BookmarkIcon=({s=20})=><Ico s={s} d={<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>}/>;
+const ArchiveIcon=({s=20})=><Ico s={s} d={<><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></>}/>;
+const PlusIcon=({s=20})=><Ico s={s} d={<><path d="M5 12h14"/><path d="M12 5v14"/></>}/>;
+const ArrowLeftIcon=({s=20})=><Ico s={s} d={<><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>}/>;
+const XIcon=({s=20})=><Ico s={s} d={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>}/>;
+const SearchIcon=({s=16})=><Ico s={s} d={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>}/>;
+const TrashIcon=({s=16})=><Ico s={s} d={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></>}/>;
+const DownloadIcon=({s=16})=><Ico s={s} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>}/>;
+const PrinterIcon=({s=16})=><Ico s={s} d={<><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></>}/>;
+const FileTextIcon=({s=40})=><Ico s={s} d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></>}/>;
+const SettingsIcon=({s=18})=><Ico s={s} d={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>}/>;
+const BookOpenIcon=({s=16})=><Ico s={s} d={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>}/>;
+const MessageCircleIcon=({s=16})=><Ico s={s} d={<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>}/>;
+const MessageSquarePlusIcon=({s=16})=><Ico s={s} d={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></>}/>;
+const VolumeIcon=({s=18})=><Ico s={s} d={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></>}/>;
+const CalendarIcon=({s=12})=><Ico s={s} d={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}/>;
+const ClockIcon=({s=12})=><Ico s={s} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>}/>;
+const CheckIcon=({s=18})=><Ico s={s} d={<polyline points="20 6 9 17 4 12"/>}/>;
+const ChevronUpIcon=({s=12})=><Ico s={s} d={<path d="m18 15-6-6-6 6"/>}/>;
+const EditIcon=({s=16})=><Ico s={s} d={<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>}/>;
+const SendIcon=({s=18})=><Ico s={s} d={<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>}/>;
+
+// ====== WEB SPEECH API ======
+function useWebSpeech(onMsg,lang='ru-RU'){
+  const [listening,setListening]=useState(false);
+  const [error,setError]=useState(null);
+  const recRef=useRef(null);
+  const handler=useRef(onMsg);
+  handler.current=onMsg;
+
+  const start=useCallback(async()=>{
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SpeechRecognition){setError('Speech recognition not supported.');return}
+    setError(null);
+    const rec=new SpeechRecognition();
+    rec.continuous=true;
+    rec.interimResults=true;
+    rec.lang=lang;
+    rec.maxAlternatives=1;
+    rec.onstart=()=>setListening(true);
+    rec.onend=()=>{setListening(false);recRef.current=null};
+    rec.onerror=(e)=>{setError(e.error==='not-allowed'?'Mic blocked. Allow mic in browser settings.':e.error==='no-speech'?'No speech detected.':e.error==='aborted'?'Stopped':e.error);setListening(false)};
+    rec.onresult=(e)=>{
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const isFinal=e.results[i].isFinal;
+        const text=e.results[i][0].transcript;
+        if(text)handler.current({type:isFinal?'final':'partial',text});
+      }
+    };
+    recRef.current=rec;
+    try{const stream=await navigator.mediaDevices.getUserMedia({audio:true});stream.getTracks().forEach(t=>t.stop());rec.start();}catch(e){if(e.name==='NotAllowedError')setError('Mic denied. Allow in browser settings.');else setError('Mic error: '+e.message);}
+  },[lang]);
+
+  const stop=useCallback(()=>{if(recRef.current){recRef.current.stop();recRef.current=null}setListening(false);},[]);
+  useEffect(()=>()=>stop(),[stop]);
+  return{listening,error,start,stop};
+}
+
+// ====== TRANSLATION ======
+const TC=new Map();
+async function transText(txt,s,t){
+  if(!txt.trim())return'';
+  const k=s+':'+t+':'+txt;
+  if(TC.has(k))return TC.get(k);
+  const eps=['https://libretranslate.de/translate','https://translate.argosopentech.com/translate'];
+  for(const ep of eps){try{const r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:txt.trim(),source:s,target:t,format:'text'})});if(!r.ok)continue;const d=await r.json();if(d.translatedText&&d.translatedText!==txt){TC.set(k,d.translatedText);return d.translatedText}}catch{continue}}
+  try{const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(txt.trim())+'&langpair='+s+'|'+t);if(r.ok){const d=await r.json();if(d.responseData?.translatedText&&d.responseData.translatedText!==txt){TC.set(k,d.responseData.translatedText);return d.responseData.translatedText}}}catch{}
+  return'['+t.toUpperCase()+'] '+txt;
+}
+
+// ====== DICTIONARY ======
+async function lookWord(word,lang){
+  const notes=JSON.parse(localStorage.getItem('uw_'+lang)||'{}');
+  const un=notes[word.toLowerCase()]||[];
+  // Check glossary first
+  const gl=gLook(word,lang);
+  if(gl)return{word:gl.word,lang,translated:lang==='ru'?gl.en:gl.ru,glossary:gl,phonetic:'',userNotes:un,meanings:[]};
+  if(lang==='en'){try{const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word.toLowerCase()));if(!r.ok)return{word,lang,translated:'',userNotes:un,meanings:[]};;const d=await r.json();const e=Array.isArray(d)?d[0]:d;return{word:e.word||word,lang:'en',translated:'',phonetic:e.phonetic||'',userNotes:un,meanings:(e.meanings||[]).map(m=>({ps:m.partOfSpeech,defs:(m.definitions||[]).slice(0,3).map(x=>x.definition),exs:(m.definitions||[]).filter(x=>x.example).slice(0,2).map(x=>x.example),syns:(m.synonyms||[]).slice(0,5)}))}}catch{return{word,lang:'en',translated:'',userNotes:un,meanings:[]}}}
+  return{word,lang:'ru',translated:'',userNotes:un,meanings:[]};
+}
+function saveNote(word,lang,note,trans){
+  const ex=JSON.parse(localStorage.getItem('uw_'+lang)||'{}');
+  const wk=word.toLowerCase();
+  if(!ex[wk])ex[wk]=[];
+  ex[wk].push({note,trans,addedAt:new Date().toISOString()});
+  localStorage.setItem('uw_'+lang,JSON.stringify(ex));
+}
+
+// ====== STORAGE ======
+function loadSess(){try{return JSON.parse(localStorage.getItem('ip_sess')||'[]')}catch{return[]}}
+function saveSess(s){localStorage.setItem('ip_sess',JSON.stringify(s))}
+function loadCur(){try{return JSON.parse(localStorage.getItem('ip_cur')||'null')}catch{return null}}
+function saveCur(s){s?localStorage.setItem('ip_cur',JSON.stringify(s)):localStorage.removeItem('ip_cur')}
+
+// ====== WORD MODAL ======
+function WModal({word,lang,ctx,onClose}){
+  const[data,setData]=useState(null);
+  const[showAdd,setShowAdd]=useState(false);
+  const[nn,setNn]=useState('');
+  const[nt,setNt]=useState('');
+  const[svd,setSvd]=useState(false);
+  useEffect(()=>{lookWord(word,lang).then(setData)},[word,lang]);
+  const hSave=()=>{if(!nn.trim())return;saveNote(word,lang,nn,nt||undefined);setSvd(true);setNn('');setNt('');setShowAdd(false);lookWord(word,lang).then(setData);setTimeout(()=>setSvd(false),2000)};
+  const spk=()=>{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(word);u.lang=lang==='en'?'en-US':'ru-RU';speechSynthesis.speak(u)}};
+  return(
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal-panel" onClick={e=>e.stopPropagation()}>
+        <div style={{padding:16,borderBottom:'1px solid #1e293b',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <h2 style={{fontSize:22,fontWeight:'bold'}}>{word}</h2>
+            <button onClick={spk} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><VolumeIcon s={18}/></button>
+          </div>
+          <button onClick={onClose} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'transparent',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><XIcon s={20}/></button>
+        </div>
+        <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:16,display:'flex',flexDirection:'column',gap:14}}>
+          {/* Glossary entry */}
+          {data?.glossary&&(
+            <div style={{padding:14,borderRadius:10,background:'rgba(251,191,36,0.08)',border:'1px solid rgba(251,191,36,0.3)'}}>
+              <div style={{display:'flex',alignItems:'baseline',gap:10,flexWrap:'wrap',marginBottom:8}}>
+                <span style={{fontSize:18,fontWeight:'bold',color:'#fbbf24'}}>{data.glossary.en}</span>
+                <span style={{color:'#64748b'}}>/</span>
+                <span style={{fontSize:16,color:'#34d399'}}>{data.glossary.ru}</span>
+              </div>
+              <p style={{fontSize:13,color:'#cbd5e1',lineHeight:1.6}}>{data.glossary.def}</p>
+              <span style={{fontSize:10,color:'#fbbf24',marginTop:6,display:'inline-block',background:'rgba(251,191,36,0.15)',padding:'2px 8px',borderRadius:8}}>Medical Engineering Glossary</span>
+            </div>
+          )}
+          {/* Translation (non-glossary) */}
+          {data?.translated&&data.translated!=='[EN] '&&data.translated!=='[RU] '&&!data?.glossary&&(
+            <div style={{padding:14,borderRadius:10,background:'rgba(37,99,235,0.1)',border:'1px solid rgba(59,130,246,0.2)'}}>
+              <span style={{fontSize:16,color:'#34d399'}}>{data.translated}</span>
+            </div>
+          )}
+          {/* Dictionary definitions (English only) */}
+          {data?.meanings?.length>0&&(
+            <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,color:'#60a5fa'}}><BookOpenIcon s={16}/><span style={{fontSize:12,fontWeight:500,textTransform:'uppercase',letterSpacing:1}}>Dictionary</span></div>
+              {data.meanings.map((m,i)=>(<div key={i} style={{padding:10,borderRadius:8,background:'rgba(30,41,59,0.3)'}}>
+                <p style={{fontSize:11,color:'#34d399',fontWeight:500,marginBottom:6}}>{m.ps}</p>
+                <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:4}}>{m.defs.map((d,j)=>(<li key={j} style={{fontSize:13,color:'#cbd5e1',lineHeight:1.5}}>{j+1}. {d}</li>))}</ul>
+                {m.exs.length>0&&<div style={{marginTop:6,paddingTop:6,borderTop:'1px solid rgba(51,65,85,0.5)'}}>{m.exs.map((ex,k)=>(<p key={k} style={{fontSize:12,color:'#64748b',fontStyle:'italic'}}>&ldquo;{ex}&rdquo;</p>))}</div>}
+                {m.syns.length>0&&<div style={{marginTop:6,display:'flex',flexWrap:'wrap',gap:4}}>{m.syns.map((s,k)=>(<span key={k} style={{fontSize:11,background:'rgba(51,65,85,0.5)',color:'#94a3b8',padding:'2px 8px',borderRadius:10}}>{s}</span>))}</div>}
+              </div>))}
+            </div>
+          )}
+          {/* Context */}
+          {ctx&&<div style={{padding:10,borderRadius:8,background:'rgba(30,41,59,0.5)',borderLeft:'2px solid #3b82f6'}}><p style={{fontSize:10,color:'#475569',textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Context</p><p style={{fontSize:12,color:'#94a3b8',fontStyle:'italic'}}>...{ctx.length>100?ctx.substring(0,100)+'...':ctx}...</p></div>}
+          {/* User notes */}
+          {data?.userNotes?.length>0&&(<div style={{display:'flex',flexDirection:'column',gap:10}}>
+            <div style={{display:'flex',alignItems:'center',gap:8,color:'#fbbf24'}}><MessageCircleIcon s={16}/><span style={{fontSize:12,fontWeight:500,textTransform:'uppercase',letterSpacing:1}}>Your Notes</span></div>
+            {data.userNotes.map((n,i)=>(<div key={i} style={{padding:10,borderRadius:8,background:'rgba(251,191,36,0.05)',border:'1px solid rgba(251,191,36,0.2)'}}>
+              {n.trans&&<p style={{color:'#34d399',fontWeight:500,fontSize:13,marginBottom:3}}>{n.trans}</p>}
+              <p style={{fontSize:13,color:'#cbd5e1'}}>{n.note}</p>
+            </div>))}
+          </div>)}
+          {/* Add note */}
+          {showAdd?(<div style={{padding:10,borderRadius:8,background:'#1e293b',border:'1px solid #334155',display:'flex',flexDirection:'column',gap:10}}>
+            <input value={nt} onChange={e=>setNt(e.target.value)} placeholder="Translation" style={{background:'#0f172a',border:'1px solid #334155',borderRadius:6,padding:'6px 10px',color:'#fff',fontSize:13}}/>
+            <textarea value={nn} onChange={e=>setNn(e.target.value)} placeholder="Your note..." rows={2} style={{background:'#0f172a',border:'1px solid #334155',borderRadius:6,padding:'6px 10px',color:'#fff',fontSize:13,resize:'none'}}/>
+            <div style={{display:'flex',gap:6}}>
+              <button onClick={hSave} style={{flex:1,background:'#2563eb',color:'#fff',border:'none',padding:8,borderRadius:6,fontSize:13,fontWeight:500,cursor:'pointer'}}>Save</button>
+              <button onClick={()=>setShowAdd(false)} style={{padding:'8px 12px',background:'#334155',color:'#cbd5e1',border:'none',borderRadius:6,fontSize:13,cursor:'pointer'}}>Cancel</button>
+            </div>
+          </div>):(<button onClick={()=>setShowAdd(true)} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:6,padding:10,border:'1px dashed #334155',borderRadius:8,color:'#475569',background:'transparent',cursor:'pointer',fontSize:13}}><MessageSquarePlusIcon s={14}/>Add note</button>)}
+          {svd&&<p style={{color:'#34d399',fontSize:13,textAlign:'center'}}>Saved!</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== LIVE SESSION ======
+function LS({session,onAdd,onEnd,onSet}){
+  const[segs,setSegs]=useState(session.segments||[]);
+  const[part,setPart]=useState('');
+  const[sel,setSel]=useState(null);
+  const[rec,setRec]=useState(false);
+  const[cs,setCs]=useState(session.sourceLang);
+  const[ct,setCt]=useState(session.targetLang);
+  const[txtIn,setTxtIn]=useState('');
+  const er=useRef(null);
+
+  useEffect(()=>{er.current?.scrollIntoView({behavior:'smooth'})},[segs,part]);
+
+  const hdl=useCallback(async(msg)=>{
+    if(msg.type==='partial')setPart(msg.text);
+    else if(msg.type==='final'){
+      const src=msg.text;setPart('');
+      const tr=await transText(src,cs,ct);
+      const sg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),src,tgt:tr,ts:Date.now()};
+      setSegs(p=>[...p,sg]);onAdd(sg);
+    }
+  },[cs,ct,onAdd]);
+
+  const spLang=cs==='ru'?'ru-RU':'en-US';
+  const{listening,err:se,stop}=useWebSpeech(hdl,spLang);
+
+  const sRec=useCallback(()=>{setRec(true)},[]);
+  const eRec=useCallback(()=>{setRec(false);stop()},[stop]);
+
+  const tgl=useCallback(()=>{if(rec)eRec();setCs(p=>p==='ru'?'en':'ru');setCt(p=>p==='en'?'ru':'en');},[rec,eRec]);
+
+  // Manual text input
+  const addText=useCallback(async()=>{
+    if(!txtIn.trim())return;
+    const tr=await transText(txtIn,cs,ct);
+    const sg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),src:txtIn,tgt:tr,ts:Date.now()};
+    setSegs(p=>[...p,sg]);onAdd(sg);setTxtIn('');
+  },[txtIn,cs,ct,onAdd]);
+
+  // Delete segment
+  const delSeg=useCallback((id)=>{setSegs(p=>p.filter(s=>s.id!==id));},[]);
+
+  const cW=(w,l,cx)=>{const cl=w.replace(/[^\w\u0430-\u044f\u0451]/gi,'');if(cl)setSel({word:cl,lang:l,ctx:cx})};
+  const rW=(tx,lg)=>tx.split(/(\s+)/).map((w,i)=>/^\s+$/.test(w)?<span key={i}>{w}</span>:gLook(w,lg)?<span key={i} style={{cursor:'pointer',padding:'1px 3px',borderRadius:3,background:'rgba(251,191,36,0.2)',borderBottom:'1px solid #fbbf24',transition:'background .15s'}} onClick={()=>cW(w,lg,tx)} title="Medical term - tap for definition">{w}</span>:<span key={i} style={{cursor:'pointer',padding:'1px 2px',borderRadius:3,transition:'background .15s'}} onClick={()=>cW(w,lg,tx)}>{w}</span>);
+
+  const hasE=se;
+  const st=hasE?'Error':listening?'Listening':rec?'Starting...':'Ready';
+  const dc=hasE?'#ef4444':listening?'#10b981':'#475569';
+  const sLb=cs==='ru'?'Русский':'English';
+  const tLb=ct==='en'?'English':'Русский';
+
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      {/* Header */}
+      <div style={{flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 14px',background:'rgba(15,23,42,0.8)',borderBottom:'1px solid #1e293b'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:10,height:10,borderRadius:'50%',background:dc,animation:listening?'pulse 1.5s infinite':undefined}}/>
+          <span style={{fontSize:12,fontWeight:500,color:'#64748b',textTransform:'uppercase',letterSpacing:1}}>{st}</span>
+        </div>
+        <div style={{display:'flex',alignItems:'center',gap:6}}>
+          <button onClick={tgl} style={{padding:'5px 10px',borderRadius:6,border:'1px solid #334155',background:'#0f172a',color:'#94a3b8',cursor:'pointer',fontSize:11,fontWeight:600}}>{cs.toUpperCase()}{' \u2192 '}{ct.toUpperCase()}</button>
+          <button onClick={onSet} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><SettingsIcon s={16}/></button>
+        </div>
+      </div>
+      {hasE&&<div style={{flexShrink:0,padding:'6px 14px',background:'rgba(239,68,68,0.1)',borderBottom:'1px solid rgba(239,68,68,0.2)'}}><p style={{fontSize:11,color:'#f87171'}}>{se}</p></div>}
+
+      {/* Split View */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minHeight:0}}>
+        {/* Source */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',borderBottom:'1px solid #1e293b',minHeight:0}}>
+          <div style={{flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'5px 12px',background:'rgba(15,23,42,0.4)'}}>
+            <span style={{fontSize:11,fontWeight:'bold',color:'#60a5fa',textTransform:'uppercase',letterSpacing:1}}>{sLb}</span>
+            <ChevronUpIcon s={10}/>
+          </div>
+          <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:'10px 12px',display:'flex',flexDirection:'column',gap:8}}>
+            {segs.map(s=>(<div key={s.id} style={{display:'flex',alignItems:'flex-start',gap:6}}>
+              <div style={{flex:1}}><p style={{fontSize:15,lineHeight:1.5,color:'#fff'}}>{rW(s.src,cs)}</p><p style={{fontSize:10,color:'#475569',fontFamily:'monospace',marginTop:2}}>{new Date(s.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p></div>
+              <button onClick={()=>delSeg(s.id)} style={{width:22,height:22,borderRadius:'50%',border:'none',background:'transparent',color:'#475569',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,marginTop:2}} title="Delete"><XIcon s={12}/></button>
+            </div>))}
+            {part&&<p style={{fontSize:15,lineHeight:1.5,color:'#94a3b8'}}>{rW(part,cs)}</p>}
+            <div ref={er}/>
+          </div>
+        </div>
+        {/* Target */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+          <div style={{flexShrink:0,display:'flex',alignItems:'center',padding:'5px 12px',background:'rgba(15,23,42,0.4)'}}>
+            <span style={{fontSize:11,fontWeight:'bold',color:'#34d399',textTransform:'uppercase',letterSpacing:1}}>{tLb}</span>
+          </div>
+          <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:'10px 12px',display:'flex',flexDirection:'column',gap:8}}>
+            {segs.map(s=>(<div key={s.id}><p style={{fontSize:15,lineHeight:1.5,color:'#a7f3d0'}}>{rW(s.tgt,ct)}</p></div>))}
+            {part&&<p style={{fontSize:15,lineHeight:1.5,color:'#34d399',opacity:0.5}}>Translating...</p>}
+          </div>
+        </div>
+      </div>
+
+      {/* Text input + Controls */}
+      <div style={{flexShrink:0,padding:'8px 12px',background:'rgba(15,23,42,0.9)',borderTop:'1px solid #1e293b'}}>
+        {/* Manual text input */}
+        <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:8}}>
+          <input value={txtIn} onChange={e=>setTxtIn(e.target.value)} onKeyDown={e=>e.key==='Enter'&&addText()} placeholder={cs==='ru'?'Type Russian...':'Type English...'} style={{flex:1,background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'8px 12px',color:'#fff',fontSize:14}}/>
+          <button onClick={addText} style={{width:36,height:36,borderRadius:'50%',border:'none',background:'#2563eb',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}><SendIcon s={16}/></button>
+        </div>
+        {/* Mic controls */}
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:14}}>
+          {!rec?(
+            <button onClick={sRec} className="recording-pulse" style={{width:56,height:56,borderRadius:'50%',border:'none',background:'#dc2626',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(220,38,38,0.3)'}}><MicIcon s={24}/></button>
+          ):(
+            <>
+              <button onClick={eRec} className="recording-pulse" style={{width:56,height:56,borderRadius:'50%',border:'none',background:'#dc2626',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(220,38,38,0.3)'}}><MicOffIcon s={24}/></button>
+              <button onClick={onEnd} style={{width:40,height:40,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><BookmarkIcon s={18}/></button>
+            </>
+          )}
+        </div>
+        <p style={{textAlign:'center',fontSize:11,color:'#475569',marginTop:6}}>{rec?'Tap red to stop':'Tap mic to speak, or type above'}</p>
+      </div>
+      {sel&&<WModal word={sel.word} lang={sel.lang} ctx={sel.ctx} onClose={()=>setSel(null)}/>}
+    </div>
+  );
+}
+
+// ====== SAVED SESSIONS ======
+function SS({sessions,onBack,onView,onDel,onExp}){
+  const[srch,setSrch]=useState('');
+  const[dlId,setDlId]=useState(null);
+  const flt=sessions.filter(s=>s.title.toLowerCase().includes(srch.toLowerCase())||s.segments.some(sg=>sg.src.toLowerCase().includes(srch.toLowerCase())));
+  const dEx=(s)=>{const b=new Blob([onExp(s)],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=s.title.replace(/\s+/g,'_')+'_'+new Date(s.createdAt).toISOString().slice(0,10)+'.txt';a.click();URL.revokeObjectURL(u)};
+  const dPr=(s)=>{const pw=window.open('','_blank');if(pw){pw.document.write('<html><head><title>'+s.title+'</title><style>body{font-family:Georgia,serif;max-width:700px;margin:40px auto;padding:20px;line-height:1.6;color:#333}h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}.meta{color:#666;font-size:13px;margin-bottom:30px}.sg{margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #eee}.tm{color:#999;font-size:11px}.sr{font-weight:bold;margin:5px 0}.tg{color:#555;font-style:italic}</style></head><body><h1>'+s.title+'</h1><div class="meta">'+new Date(s.createdAt).toLocaleString()+'|'+s.sourceLang+'\u2192'+s.targetLang+'|'+Math.round(s.duration/60)+'min</div>'+s.segments.map(x=>'<div class="sg"><div class="tm">'+new Date(x.ts).toLocaleTimeString()+'</div><div class="sr">'+x.src+'</div><div class="tg">'+x.tgt+'</div></div>').join('')+'</body></html>');pw.document.close();pw.print()}};
+  const cDel=(id)=>{if(dlId===id){onDel(id);setDlId(null)}else{setDlId(id);setTimeout(()=>setDlId(null),3000)}};
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(15,23,42,0.8)',borderBottom:'1px solid #1e293b'}}>
+        <button onClick={onBack} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><ArrowLeftIcon s={18}/></button>
+        <h1 style={{fontSize:16,fontWeight:600}}>Saved</h1>
+        <span style={{fontSize:11,background:'#1e293b',color:'#94a3b8',padding:'2px 8px',borderRadius:10}}>{sessions.length}</span>
+      </div>
+      <div style={{flexShrink:0,padding:'6px 14px'}}>
+        <div style={{position:'relative'}}>
+          <div style={{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',color:'#475569'}}><SearchIcon s={14}/></div>
+          <input value={srch} onChange={e=>setSrch(e.target.value)} placeholder="Search..." style={{width:'100%',background:'#0f172a',border:'1px solid #1e293b',borderRadius:10,padding:'8px 10px 8px 30px',color:'#fff',fontSize:13}}/>
+        </div>
+      </div>
+      <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:'0 14px 14px',display:'flex',flexDirection:'column',gap:6}}>
+        {flt.length===0&&<div style={{textAlign:'center',padding:40,color:'#475569'}}><FileTextIcon s={36}/><p style={{fontSize:13,marginTop:10}}>No sessions</p></div>}
+        {flt.map(s=>(
+          <div key={s.id} style={{padding:12,borderRadius:10,background:'rgba(15,23,42,0.6)',border:'1px solid #1e293b'}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:6}}>
+              <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>onView(s.id)}>
+                <h3 style={{fontWeight:500,color:'#fff',fontSize:14,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.title}</h3>
+                <div style={{display:'flex',alignItems:'center',gap:8,marginTop:4,fontSize:11,color:'#475569'}}>
+                  <span style={{display:'flex',alignItems:'center',gap:3}}><CalendarIcon s={10}/>{new Date(s.createdAt).toLocaleDateString()}</span>
+                  <span style={{color:'#60a5fa'}}>{s.sourceLang}\u2192{s.targetLang}</span>
+                </div>
+              </div>
+              <div style={{display:'flex',gap:2}}>
+                <button onClick={()=>dEx(s)} style={{width:28,height:28,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><DownloadIcon s={12}/></button>
+                <button onClick={()=>dPr(s)} style={{width:28,height:28,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><PrinterIcon s={12}/></button>
+                <button onClick={()=>cDel(s.id)} style={{width:28,height:28,borderRadius:'50%',border:'none',background:dlId===s.id?'rgba(239,68,68,0.2)':'#1e293b',color:dlId===s.id?'#f87171':'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><TrashIcon s={12}/></button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ====== SESSION VIEWER ======
+function SV({session,onBack,onExp}){
+  const dEx=()=>{const b=new Blob([onExp(session)],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=session.title.replace(/\s+/g,'_')+'_'+new Date(session.createdAt).toISOString().slice(0,10)+'.txt';a.click();URL.revokeObjectURL(u)};
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:10,padding:'10px 14px',background:'rgba(15,23,42,0.8)',borderBottom:'1px solid #1e293b'}}>
+        <button onClick={onBack} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><ArrowLeftIcon s={18}/></button>
+        <h1 style={{fontSize:16,fontWeight:600,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{session.title}</h1>
+        <button onClick={dEx} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><DownloadIcon s={14}/></button>
+      </div>
+      <div className="no-scrollbar" style={{flex:1,overflowY:'auto'}}>
+        <div style={{maxWidth:672,margin:'0 auto',padding:14,display:'flex',flexDirection:'column',gap:14}}>
+          {session.segments.length===0&&<p style={{textAlign:'center',color:'#475569',padding:40}}>Empty</p>}
+          {session.segments.map(s=>(<div key={s.id} style={{paddingBottom:12,borderBottom:'1px solid rgba(30,41,59,0.5)'}}>
+            <span style={{fontSize:10,color:'#475569',fontFamily:'monospace'}}>{new Date(s.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+            <p style={{fontSize:15,color:'#fff',marginTop:4,lineHeight:1.5}}>{s.src}</p>
+            <p style={{fontSize:15,color:'#a7f3d0',lineHeight:1.5}}>{s.tgt}</p>
+          </div>))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== MAIN APP ======
+function App(){
+  const[view,setView]=useState('live');
+  const[vid,setVid]=useState(null);
+  const[sn,setSn]=useState(false);
+  const[ttl,setTtl]=useState('');
+  const[sl,setSl]=useState('ru');
+  const[tl,setTl]=useState('en');
+  const[ss,setSs]=useState([]);
+  const[cs,setCs]=useState(null);
+  const[ld,setLd]=useState(false);
+
+  useEffect(()=>{setSs(loadSess());setCs(loadCur());setLd(true)},[]);
+  useEffect(()=>{if(ld)saveSess(ss)},[ss,ld]);
+  useEffect(()=>{saveCur(cs)},[cs]);
+
+  const crt=useCallback(()=>{const t=ttl.trim()||'Session '+new Date().toLocaleString();const s={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),title:t,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),segments:[],sourceLang:sl,targetLang:tl,duration:0};setCs(s);setSn(false);setTtl('');setView('live')},[ttl,sl,tl]);
+  const aSeg=useCallback((sg)=>{setCs(p=>p?{...p,segments:[...p.segments,sg],updatedAt:new Date().toISOString()}:p)},[]);
+  const eSess=useCallback(()=>{if(!cs)return;const f={...cs,updatedAt:new Date().toISOString(),duration:Math.round((Date.now()-new Date(cs.createdAt).getTime())/1000)};setSs(p=>[f,...p]);setCs(null);saveCur(null);setView('sessions')},[cs]);
+  const dSess=useCallback((id)=>setSs(p=>p.filter(s=>s.id!==id)),[]);
+  const expS=(s)=>{const ls=['Session: '+s.title,'Date: '+new Date(s.createdAt).toLocaleString(),'Lang: '+s.sourceLang+'\u2192'+s.targetLang,'Dur: '+Math.round(s.duration/60)+'min','','---TRANSCRIPT---',''];for(const x of s.segments){ls.push('['+new Date(x.ts).toLocaleTimeString()+']',s.sourceLang.toUpperCase()+': '+x.src,s.targetLang.toUpperCase()+': '+x.tgt,'')}return ls.join('\n')};
+  const vw=vid?ss.find(s=>s.id===vid):null;
+
+  if(!ld)return<div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'#020617'}}><div style={{width:32,height:32,border:'2px solid #2563eb',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite'}}/></div>;
+
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      <div style={{flex:1,overflow:'hidden',minHeight:0}}>
+        {!cs&&view==='live'&&(<div style={{height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'0 24px'}}>
+          <div style={{width:72,height:72,borderRadius:'50%',background:'rgba(37,99,235,0.1)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:20}}><MicIcon s={32}/></div>
+          <h1 style={{fontSize:24,fontWeight:'bold',marginBottom:6}}>Constance</h1>
+          <p style={{color:'#475569',textAlign:'center',fontSize:13,marginBottom:28,maxWidth:260}}>Real-time transcription and translation for medical research interpreting.</p>
+          <button onClick={()=>setSn(true)} style={{width:'100%',maxWidth:280,background:'#2563eb',color:'#fff',border:'none',padding:14,borderRadius:14,fontSize:16,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:10,boxShadow:'0 4px 20px rgba(37,99,235,0.3)'}}><PlusIcon s={20}/>New Session</button>
+          <p style={{color:'#334155',fontSize:11,marginTop:20}}>Russian to English - Free - No signup</p>
+        </div>)}
+        {cs&&view==='live'&&<LS session={cs} onAdd={aSeg} onEnd={eSess} onSet={()=>{}}/>}
+        {view==='sessions'&&<SS sessions={ss} onBack={()=>setView('live')} onView={id=>{setVid(id);setView('detail')}} onDel={dSess} onExp={expS}/>}
+        {view==='detail'&&vw&&<SV session={vw} onBack={()=>setView('sessions')} onExp={expS}/>}
+      </div>
+      {(cs||view!=='live'||ss.length>0)&&(
+        <div style={{flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-around',background:'rgba(15,23,42,0.9)',borderTop:'1px solid #1e293b',backdropFilter:'blur(12px)',paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
+          <button onClick={()=>setView('live')} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'8px 16px',borderRadius:12,border:'none',background:'transparent',color:view==='live'?'#60a5fa':'#475569',fontSize:10,fontWeight:500,cursor:'pointer'}}><MicIcon s={20}/><span>Live</span></button>
+          <button onClick={()=>setSn(true)} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'8px 16px',borderRadius:12,border:'none',background:'transparent',color:'#475569',fontSize:10,fontWeight:500,cursor:'pointer'}}><PlusIcon s={20}/><span>New</span></button>
+          <button onClick={()=>setView('sessions')} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'8px 16px',borderRadius:12,border:'none',background:'transparent',color:view==='sessions'||view==='detail'?'#60a5fa':'#475569',fontSize:10,fontWeight:500,cursor:'pointer'}}><ArchiveIcon s={20}/><span>Saved</span></button>
+        </div>
+      )}
+
+      {sn&&<div className="modal-bg" onClick={()=>setSn(false)}>
+        <div className="modal-panel" style={{padding:16}} onClick={e=>e.stopPropagation()}>
+          <h2 style={{fontSize:16,fontWeight:600,marginBottom:12}}>New Session</h2>
+          <input value={ttl} onChange={e=>setTtl(e.target.value)} onKeyDown={e=>e.key==='Enter'&&crt()} placeholder="Session name..." autoFocus style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'10px 14px',color:'#fff',fontSize:15,marginBottom:10}}/>
+          <div style={{display:'flex',gap:10,marginBottom:12}}>
+            <div style={{flex:1}}><label style={{fontSize:11,color:'#475569',display:'block',marginBottom:3}}>From</label><select value={sl} onChange={e=>setSl(e.target.value)} style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:6,padding:'6px 10px',color:'#fff',fontSize:13}}><option value="ru">Russian</option><option value="en">English</option></select></div>
+            <div style={{flex:1}}><label style={{fontSize:11,color:'#475569',display:'block',marginBottom:3}}>To</label><select value={tl} onChange={e=>setTl(e.target.value)} style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:6,padding:'6px 10px',color:'#fff',fontSize:13}}><option value="en">English</option><option value="ru">Russian</option></select></div>
+          </div>
+          <button onClick={crt} style={{width:'100%',background:'#2563eb',color:'#fff',border:'none',padding:12,borderRadius:10,fontSize:15,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}><CheckIcon s={16}/>Start</button>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>
