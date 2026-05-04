@@ -90,10 +90,9 @@ const GLOSSARY=[
 {en:"Vascular",ru:"Sosudisty",def:"Relating to blood vessels and circulation."}
 ];
 
-// CONFIG: Paste your Merriam-Webster Medical API key here (get free at dictionaryapi.com)
-// With a key: medical definitions from Merriam-Webster (75K+ terms)
-// Without: falls back to FreeDictionary + Wikipedia
-const MW_MEDICAL_KEY="";
+// CONFIG: Merriam-Webster API keys (free tier: 1000 queries/day)
+const MW_MEDICAL_KEY="63cc7ca6-8850-4310-b9c0-69890f31bc7d";
+const MW_COLLEGIATE_KEY="4c2d0de6-f0d5-46eb-a444-7af263f7cec3";
 
 let recognition=null;
 function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
@@ -121,9 +120,9 @@ async function fetchDefinition(word){try{const r=await fetch("https://api.dictio
 
 async function fetchWikipedia(word){try{const r=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(word));const d=await r.json();if(d.extract)return d.extract;}catch(e){}return null;}
 
-async function fetchMerriamWebsterMedical(word){
-  if(!MW_MEDICAL_KEY)return null;
-  try{const r=await fetch("https://www.dictionaryapi.com/api/v3/references/medical/json/"+encodeURIComponent(word)+"?key="+MW_MEDICAL_KEY);const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].shortdef&&d[0].shortdef.length){return{fl:d[0].fl||"medical",defs:d[0].shortdef.slice(0,3)};}}catch(e){}return null;
+async function fetchMerriamWebster(word,type,key){
+  if(!key)return null;
+  try{const r=await fetch("https://www.dictionaryapi.com/api/v3/references/"+type+"/json/"+encodeURIComponent(word)+"?key="+key);const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].shortdef&&d[0].shortdef.length){return{fl:d[0].fl||type,src:type,defs:d[0].shortdef.slice(0,3)};}}catch(e){}return null;
 }
 
 function findGlossary(word){
@@ -161,25 +160,31 @@ function WordModal({word,onClose}){
         const en=await translate(word,"ru","en");
         if(!isTransliteration(word,stripTag(en)))setToEn(en);
         const clean=stripTag(en)||word;
-        // Try Merriam-Webster Medical first if key is set
-        const mw=await fetchMerriamWebsterMedical(clean);
-        if(mw)setMedDefs(mw);
+        // Try Merriam-Webster Medical first
+        const mwMed=await fetchMerriamWebster(clean,"medical",MW_MEDICAL_KEY);
+        if(mwMed)setMedDefs(mwMed);
+        // Also try Merriam-Webster Collegiate
+        const mwCol=await fetchMerriamWebster(clean,"collegiate",MW_COLLEGIATE_KEY);
+        if(mwCol&&!mwMed)setMedDefs(mwCol);
         // Also try FreeDictionary
         const defs=await fetchDefinition(clean);
         if(defs)setEnDefs(defs);
         // Wikipedia fallback
-        if(!mw&&!defs){const w=await fetchWikipedia(clean);if(w)setWiki(w);}
+        if(!mwMed&&!mwCol&&!defs){const w=await fetchWikipedia(clean);if(w)setWiki(w);}
       }else{
         // English word: look up defs, translate to Russian
         const clean=word.toLowerCase().replace(/[^a-z]/gi,"")||word;
         // Try Merriam-Webster Medical first
-        const mw=await fetchMerriamWebsterMedical(clean);
-        if(mw)setMedDefs(mw);
+        const mwMed=await fetchMerriamWebster(clean,"medical",MW_MEDICAL_KEY);
+        if(mwMed)setMedDefs(mwMed);
+        // Also try Merriam-Webster Collegiate
+        const mwCol=await fetchMerriamWebster(clean,"collegiate",MW_COLLEGIATE_KEY);
+        if(mwCol&&!mwMed)setMedDefs(mwCol);
         // Also try FreeDictionary
         const defs=await fetchDefinition(clean);
         if(defs)setEnDefs(defs);
         // Wikipedia fallback
-        if(!mw&&!defs){const w=await fetchWikipedia(clean);if(w)setWiki(w);}
+        if(!mwMed&&!mwCol&&!defs){const w=await fetchWikipedia(clean);if(w)setWiki(w);}
         // Russian translation
         const ru=await translate(word,"en","ru");
         if(ru&&ru!==word)setToRu(ru);
@@ -212,9 +217,9 @@ function WordModal({word,onClose}){
         !loading&&React.createElement("div",{className:"dict-def",style:{color:"#666",fontStyle:"italic"}},"No Russian translation available.")
       ),
 
-      // Merriam-Webster Medical definitions
+      // Merriam-Webster definitions
       medDefs&&React.createElement("div",{style:{marginBottom:14}},
-        React.createElement("div",{className:"dict-pos"},"Merriam-Webster Medical — "+medDefs.fl),
+        React.createElement("div",{className:"dict-pos"},"Merriam-Webster "+(medDefs.src==="medical"?"Medical":(medDefs.src==="collegiate"?"Collegiate":""))+" — "+medDefs.fl),
         medDefs.defs.map((def,j)=>React.createElement("div",{key:j,className:"dict-def"},"• "+def))
       ),
 
