@@ -59,6 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .start-overlay{position:fixed;inset:0;background:#0f0f0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200}
 .start-btn{background:#22c55e;color:#fff;border:none;padding:18px 40px;border-radius:30px;font-size:18px;font-weight:600;cursor:pointer;margin-top:20px}
 .start-sub{color:#888;font-size:14px;margin-top:12px;text-align:center;padding:0 30px}
+.room-code{display:flex;align-items:center;justify-content:center;gap:8px;padding:10px 0;background:#0a2a0a;border-bottom:1px solid #1a3a1a}
 </style>
 </head>
 <body>
@@ -93,6 +94,11 @@ const GLOSSARY=[
 // CONFIG: Merriam-Webster API keys (free tier: 1000 queries/day)
 const MW_MEDICAL_KEY="63cc7ca6-8850-4310-b9c0-69890f31bc7d";
 const MW_COLLEGIATE_KEY="4c2d0de6-f0d5-46eb-a444-7af263f7cec3";
+
+// CONFIG: WebSocket collaboration server URL
+// Leave empty for local-only mode (no collaboration)
+// Example: "wss://your-server.com" or "ws://localhost:8080"
+const COLLAB_SERVER="";
 
 let recognition=null;
 function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
@@ -274,7 +280,7 @@ function Seg({s,onTap,onDel,onEdit}){
   );
 }
 
-function LiveSession({source,target,segs,setSegs,onSave}){
+function LiveSession({source,target,segs,setSegs,onSave,collab}){
   const [txt,setTxt]=useState("");
   const [listening,setListen]=useState(true);
   const [status,setStatus]=useState("Starting...");
@@ -285,23 +291,40 @@ function LiveSession({source,target,segs,setSegs,onSave}){
 
   useEffect(()=>{setCurrent(source);},[source]);
 
+  const addSeg=useCallback((seg)=>{
+    setSegs(p=>[...p,seg]);
+    if(collab&&collab.connected)collab.send({type:'add',seg});
+  },[setSegs,collab]);
+
+  const delSeg=useCallback((id)=>{
+    setSegs(p=>p.filter(s=>s.id!==id));
+    if(collab&&collab.connected)collab.send({type:'delete',id});
+  },[setSegs,collab]);
+
+  const editSeg=useCallback((id,text,trans)=>{
+    setSegs(p=>p.map(s=>s.id===id?{...s,text,trans}:s));
+    if(collab&&collab.connected)collab.send({type:'edit',id,text,trans});
+  },[setSegs,collab]);
+
+  const clearSegs=useCallback(()=>{
+    setSegs([]);
+    if(collab&&collab.connected)collab.send({type:'clear'});
+  },[setSegs,collab]);
+
   useSpeech(async(t)=>{
     if(!t||t===txt)return;
     setTxt(t);
     setStatus("Listening...");
     const trans=await translate(t,current,current==="ru"?"en":"ru");
     const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})};
-    setSegs(p=>[...p,seg]);
+    addSeg(seg);
     setTxt("");
     setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:"smooth"}),100);
   },current==="ru"?"ru-RU":"en-US",listening);
 
   useEffect(()=>{const ok=!!getRec();setStatus(ok?(listening?"Listening...":"Paused"):"Mic unavailable");},[listening]);
 
-  const send=()=>{if(!input.trim())return;const t=input.trim();translate(t,current,current==="ru"?"en":"ru").then(trans=>{const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})};setSegs(p=>[...p,seg]);setInput("");setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:"smooth"}),100);});};
-
-  const del=(id)=>setSegs(p=>p.filter(s=>s.id!==id));
-  const edit=(id,text,trans)=>setSegs(p=>p.map(s=>s.id===id?{...s,text,trans}:s));
+  const send=()=>{if(!input.trim())return;const t=input.trim();translate(t,current,current==="ru"?"en":"ru").then(trans=>{const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"})};addSeg(seg);setInput("");setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:"smooth"}),100);});};
 
   const save=()=>{if(!segs.length)return;const title="Session "+new Date().toLocaleString();const data=JSON.stringify(segs);localStorage.setItem("constance_"+Date.now(),JSON.stringify({title,date:Date.now(),data}));if(onSave)onSave();alert("Saved!");};
 
@@ -318,7 +341,7 @@ function LiveSession({source,target,segs,setSegs,onSave}){
     ),
     React.createElement("div",{className:"main",style:{padding:10,overflowY:"auto"}},
       segs.length===0&&React.createElement("div",{className:"empty"},"Say something in "+(current==="ru"?"Russian":"English")+"..."),
-      segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>del(s.id),onEdit:edit})),
+      segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>delSeg(s.id),onEdit:editSeg})),
       React.createElement("div",{ref:bottom})
     ),
     React.createElement("div",{className:"input-row"},
@@ -327,7 +350,7 @@ function LiveSession({source,target,segs,setSegs,onSave}){
     ),
     React.createElement("div",{style:{display:"flex",justifyContent:"center",gap:12,padding:"8px 0",background:"#1a1a1a",borderTop:"1px solid #333"}},
       React.createElement("button",{className:"icon-btn",onClick:save},"Save"),
-      React.createElement("button",{className:"icon-btn",onClick:()=>{if(confirm("Clear all?"))setSegs([]);}},"Clear")
+      React.createElement("button",{className:"icon-btn",onClick:()=>{if(confirm("Clear all?"))clearSegs();}},"Clear")
     ),
     modal&&React.createElement(WordModal,{word:modal,onClose:()=>setModal(null)})
   );
@@ -398,6 +421,112 @@ function GlossaryPage(){
   );
 }
 
+// ---- COLLABORATION ----
+
+function useCollab(setSegs){
+  const [ws,setWs]=useState(null);
+  const [room,setRoom]=useState(null);
+  const [role,setRole]=useState(null);
+  const [connected,setConnected]=useState(false);
+  const [error,setError]=useState(null);
+
+  const disconnect=useCallback(()=>{
+    if(ws){ws.close();}
+    setWs(null);setRoom(null);setRole(null);setConnected(false);setError(null);
+  },[ws]);
+
+  const connect=useCallback((url)=>{
+    if(!url||!COLLAB_SERVER)return null;
+    try{
+      const socket=new WebSocket(url);
+      socket.onopen=()=>{setConnected(true);setError(null);};
+      socket.onclose=()=>{setConnected(false);};
+      socket.onerror=(e)=>{setError("Connection failed. Check server URL.");};
+      socket.onmessage=(e)=>{
+        try{
+          const msg=JSON.parse(e.data);
+          switch(msg.type){
+            case 'state':setSegs(msg.segs||[]);break;
+            case 'add':setSegs(p=>[...p,msg.seg]);break;
+            case 'edit':setSegs(p=>p.map(s=>s.id===msg.id?{...s,text:msg.text,trans:msg.trans}:s));break;
+            case 'delete':setSegs(p=>p.filter(s=>s.id!==msg.id));break;
+            case 'clear':setSegs([]);break;
+            case 'joined':setRoom(msg.room);setRole(msg.role);break;
+            case 'error':setError(msg.message);break;
+          }
+        }catch(err){}
+      };
+      setWs(socket);
+      return socket;
+    }catch(e){setError("Failed to connect.");return null;}
+  },[setSegs]);
+
+  const createRoom=useCallback(()=>{
+    const socket=connect(COLLAB_SERVER);
+    if(socket){
+      setTimeout(()=>{if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'create'}));},500);
+    }
+  },[connect]);
+
+  const joinRoom=useCallback((code)=>{
+    const socket=connect(COLLAB_SERVER);
+    if(socket){
+      setTimeout(()=>{if(socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:'join',room:code}));},500);
+    }
+  },[connect]);
+
+  const send=useCallback((msg)=>{
+    if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify(msg));
+  },[ws]);
+
+  return {ws,room,role,connected,error,createRoom,joinRoom,disconnect,send};
+}
+
+function RoomScreen({onSolo,onCreate,onJoin,room,role,connected,error}){
+  const [code,setCode]=useState("");
+  const [mode,setMode]=useState("menu");
+
+  if(room&&connected){
+    return React.createElement("div",{className:"start-overlay"},
+      React.createElement("div",{style:{fontSize:32,fontWeight:700,marginBottom:8}},"Constance"),
+      React.createElement("div",{style:{fontSize:16,color:"#22c55e",marginBottom:20}},"Room Connected"),
+      React.createElement("div",{style:{background:"#1e1e1e",padding:20,borderRadius:12,marginBottom:20,textAlign:"center"}},
+        React.createElement("div",{style:{color:"#888",fontSize:13,marginBottom:6}},"ROOM CODE"),
+        React.createElement("div",{style:{fontSize:36,fontWeight:700,letterSpacing:4,color:"#22c55e"}},room),
+        React.createElement("div",{style:{color:"#888",fontSize:13,marginTop:8}},"Share this code with your team."),
+        React.createElement("div",{style:{color:"#666",fontSize:12,marginTop:4}},"Role: "+(role==='host'?'Host':'Guest'))
+      ),
+      React.createElement("button",{className:"start-btn",onClick:onSolo},"Enter Session")
+    );
+  }
+
+  if(mode==="join"){
+    return React.createElement("div",{className:"start-overlay"},
+      React.createElement("div",{style:{fontSize:32,fontWeight:700,marginBottom:8}},"Constance"),
+      React.createElement("div",{style:{fontSize:16,color:"#22c55e",marginBottom:20}},"Join Room"),
+      React.createElement("input",{value:code,onChange:e=>setCode(e.target.value.toUpperCase()),placeholder:"Enter room code",maxLength:6,style:{width:200,textAlign:"center",fontSize:20,background:"#222",border:"1px solid #444",color:"#fff",padding:"12px 16px",borderRadius:12,marginBottom:12,letterSpacing:4}}),
+      error&&React.createElement("div",{style:{color:"#ef4444",fontSize:14,marginBottom:12}},error),
+      React.createElement("button",{className:"start-btn",onClick:()=>onJoin(code)},"Join"),
+      React.createElement("button",{className:"toggle-btn",style:{marginTop:12},onClick:()=>{setMode("menu");setCode("");}},"Back")
+    );
+  }
+
+  return React.createElement("div",{className:"start-overlay"},
+    React.createElement("div",{style:{fontSize:32,fontWeight:700,marginBottom:8}},"Constance"),
+    React.createElement("div",{style:{fontSize:16,color:"#22c55e",marginBottom:4}},"Interpreter Pro"),
+    React.createElement("div",{className:"start-sub"},"Real-time Russian-English transcription, translation & medical glossary."),
+    React.createElement("div",{className:"start-sub"},"Tap words for definitions. Save sessions for client delivery."),
+    COLLAB_SERVER&&React.createElement("div",{style:{display:"flex",flexDirection:"column",gap:10,marginTop:20,width:260}},
+      React.createElement("button",{className:"start-btn",onClick:onCreate},"Create Room"),
+      React.createElement("button",{className:"toggle-btn",style:{fontSize:15,padding:"12px 20px"},onClick:()=>setMode("join")},"Join Room"),
+      React.createElement("button",{className:"toggle-btn",style:{fontSize:15,padding:"12px 20px",color:"#888"},onClick:onSolo},"Solo Mode")
+    ),
+    !COLLAB_SERVER&&React.createElement("button",{className:"start-btn",onClick:onSolo,style:{marginTop:20}},"Start Session")
+  );
+}
+
+// ---- APP ----
+
 function App(){
   const [tab,setTab]=useState("live");
   const [started,setStarted]=useState(false);
@@ -405,22 +534,33 @@ function App(){
   const [source,setSource]=useState("ru");
   const [segs,setSegs]=useState([]);
 
-  if(!started)return React.createElement("div",{className:"start-overlay"},
-    React.createElement("div",{style:{fontSize:32,fontWeight:700,marginBottom:8}},"Constance"),
-    React.createElement("div",{style:{fontSize:16,color:"#22c55e",marginBottom:4}},"Interpreter Pro"),
-    React.createElement("div",{className:"start-sub"},"Real-time Russian-English transcription, translation & medical glossary."),
-    React.createElement("div",{className:"start-sub"},"Tap words for definitions. Save sessions for client delivery."),
-    React.createElement("button",{className:"start-btn",onClick:()=>setStarted(true)},"Start Session")
-  );
+  const collab=useCollab(setSegs);
+
+  if(!started){
+    return React.createElement(RoomScreen,{
+      onSolo:()=>setStarted(true),
+      onCreate:collab.createRoom,
+      onJoin:collab.joinRoom,
+      room:collab.room,
+      role:collab.role,
+      connected:collab.connected,
+      error:collab.error
+    });
+  }
 
   return React.createElement("div",{style:{display:"flex",flexDirection:"column",height:"100vh"}},
+    collab.room&&React.createElement("div",{style:{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",gap:8,padding:"6px 0",background:"#0a2a0a",borderBottom:"1px solid #1a3a1a"}},
+      React.createElement("span",{style:{fontSize:12,color:"#22c55e",fontWeight:600}},"ROOM: "+collab.room),
+      React.createElement("span",{style:{fontSize:11,color:"#666"}},collab.connected?"(live)":"(disconnected)"),
+      React.createElement("button",{style:{fontSize:11,background:"none",border:"none",color:"#888",cursor:"pointer"},onClick:collab.disconnect},"Leave")
+    ),
     React.createElement("div",{className:"nav"},
       React.createElement("button",{className:"nav-btn "+(tab==="live"?"active":""),onClick:()=>{setTab("live");setViewer(null);}},"Live"),
       React.createElement("button",{className:"nav-btn "+(tab==="saved"?"active":""),onClick:()=>{setTab("saved");setViewer(null);}},"Saved"),
       React.createElement("button",{className:"nav-btn "+(tab==="glossary"?"active":""),onClick:()=>setTab("glossary")},"Glossary")
     ),
     viewer?React.createElement(SessionViewer,{item:viewer,onBack:()=>setViewer(null)}):
-    tab==="live"?React.createElement(LiveSession,{source,target:source==="ru"?"en":"ru",segs,setSegs,onSave:()=>setTab("saved")}):
+    tab==="live"?React.createElement(LiveSession,{source,target:source==="ru"?"en":"ru",segs,setSegs,onSave:()=>setTab("saved"),collab}):
     tab==="saved"?React.createElement(SavedSessions,{onOpen:setViewer}):
     React.createElement(GlossaryPage,null)
   );
