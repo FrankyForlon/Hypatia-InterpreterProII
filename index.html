@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0f172a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Interpreter Pro</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#020617;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+#root{height:100%}
+.no-scrollbar::-webkit-scrollbar{display:none}
+.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:1}100%{transform:scale(1.5);opacity:0}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.recording-pulse{position:relative}
+.recording-pulse::before{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid #ef4444;animation:pulse-ring 1.5s ease-out infinite}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(4px);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.modal-panel{background:#0f172a;width:100%;border-radius:16px 16px 0 0;border:1px solid #334155;display:flex;flex-direction:column;max-height:85vh}
+@media(min-width:640px){.modal-bg{align-items:center}.modal-panel{border-radius:16px;max-width:480px;max-height:80vh;border-bottom:1px solid #334155}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useRef}=React;
+
+// ====== ICONS ======
+function Ico({d,s=20}){return<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">{d}</svg>}
+const MicIcon=({s=20})=><Ico s={s} d={<><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></>}/>;
+const MicOffIcon=({s=20})=><Ico s={s} d={<><line x1="2" y1="2" x2="22" y2="22"/><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></>}/>;
+const BookmarkIcon=({s=20})=><Ico s={s} d={<path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/>}/>;
+const ArchiveIcon=({s=20})=><Ico s={s} d={<><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></>}/>;
+const PlusIcon=({s=20})=><Ico s={s} d={<><path d="M5 12h14"/><path d="M12 5v14"/></>}/>;
+const ArrowLeftIcon=({s=20})=><Ico s={s} d={<><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></>}/>;
+const XIcon=({s=20})=><Ico s={s} d={<><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>}/>;
+const SearchIcon=({s=16})=><Ico s={s} d={<><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>}/>;
+const TrashIcon=({s=16})=><Ico s={s} d={<><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></>}/>;
+const DownloadIcon=({s=16})=><Ico s={s} d={<><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>}/>;
+const PrinterIcon=({s=16})=><Ico s={s} d={<><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></>}/>;
+const FileTextIcon=({s=40})=><Ico s={s} d={<><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></>}/>;
+const SettingsIcon=({s=18})=><Ico s={s} d={<><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></>}/>;
+const BookOpenIcon=({s=16})=><Ico s={s} d={<><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>}/>;
+const MessageCircleIcon=({s=16})=><Ico s={s} d={<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/>}/>;
+const MessageSquarePlusIcon=({s=16})=><Ico s={s} d={<><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M12 7v6"/><path d="M9 10h6"/></>}/>;
+const VolumeIcon=({s=18})=><Ico s={s} d={<><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></>}/>;
+const CalendarIcon=({s=12})=><Ico s={s} d={<><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}/>;
+const ClockIcon=({s=12})=><Ico s={s} d={<><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>}/>;
+const CheckIcon=({s=18})=><Ico s={s} d={<polyline points="20 6 9 17 4 12"/>}/>;
+const ChevronUpIcon=({s=12})=><Ico s={s} d={<path d="m18 15-6-6-6 6"/>}/>;
+
+// ====== WEB SPEECH API TRANSCRIPTION ======
+// Uses browser's built-in speech recognition (free, no API key, works offline on some devices)
+function useWebSpeech(onMsg,lang='ru-RU'){
+  const [listening,setListening]=useState(false);
+  const [error,setError]=useState(null);
+  const recRef=useRef(null);
+  const handler=useRef(onMsg);
+  handler.current=onMsg;
+
+  const start=useCallback(async()=>{
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SpeechRecognition){setError('Speech recognition not supported. Use Chrome or Samsung Internet.');return}
+    setError(null);
+    const rec=new SpeechRecognition();
+    rec.continuous=true;
+    rec.interimResults=true;
+    rec.lang=lang;
+    rec.maxAlternatives=1;
+
+    rec.onstart=()=>setListening(true);
+    rec.onend=()=>{setListening(false);recRef.current=null};
+    rec.onerror=(e)=>{
+      const msg=e.error==='not-allowed'?'Microphone blocked. Tap the lock icon in your browser address bar and allow microphone access, then reload the page.':e.error==='no-speech'?'No speech detected. Try speaking louder.':e.error==='aborted'?'Stopped':e.error==='network'?'Network error. Check your internet connection.':`Error: ${e.error}`;
+      setError(msg);setListening(false)
+    };
+
+    rec.onresult=(e)=>{
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        const isFinal=e.results[i].isFinal;
+        const text=e.results[i][0].transcript;
+        if(text)handler.current({type:isFinal?'final':'partial',text});
+      }
+    };
+
+    recRef.current=rec;
+    // Pre-request microphone permission via getUserMedia for clearer UX
+    try{
+      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+      stream.getTracks().forEach(t=>t.stop());
+      rec.start();
+    }catch(e){
+      if(e.name==='NotAllowedError')setError('Microphone access denied. Tap the lock icon in your browser address bar, set Microphone to "Allow", then reload.');
+      else if(e.name==='NotFoundError')setError('No microphone found. Check your device.');
+      else setError('Mic error: '+e.message);
+    }
+  },[lang]);
+
+  const stop=useCallback(()=>{
+    if(recRef.current){recRef.current.stop();recRef.current=null}
+    setListening(false);
+  },[]);
+
+  useEffect(()=>()=>stop(),[stop]);
+  return{listening,error,start,stop};
+}
+
+// ====== TRANSLATION ======
+const TCache=new Map();
+async function translateText(text,source,target){
+  if(!text.trim())return'';
+  const k=`${source}:${target}:${text}`;
+  if(TCache.has(k))return TCache.get(k);
+  const endpoints=['https://libretranslate.de/translate','https://libretranslate.com/translate','https://translate.argosopentech.com/translate'];
+  for(const ep of endpoints){
+    try{
+      const r=await fetch(ep,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({q:text.trim(),source,target,format:'text'})});
+      if(!r.ok)continue;
+      const d=await r.json();
+      if(d.translatedText){TCache.set(k,d.translatedText);return d.translatedText}
+    }catch{continue}
+  }
+  return text;
+}
+
+// ====== DICTIONARY ======
+async function lookupWord(word,lang){
+  const allNotes=JSON.parse(localStorage.getItem(`userwords_${lang}`)||'{}');
+  const userNotes=allNotes[word.toLowerCase()]||[];
+  if(lang==='en'){
+    try{
+      const r=await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
+      if(!r.ok)return{word,lang,userNotes,meanings:[]};
+      const data=await r.json();
+      const entry=Array.isArray(data)?data[0]:data;
+      return{word:entry.word||word,lang:'en',phonetic:entry.phonetic,userNotes,meanings:(entry.meanings||[]).map(m=>({partOfSpeech:m.partOfSpeech,definitions:(m.definitions||[]).slice(0,3).map(d=>d.definition),examples:(m.definitions||[]).filter(d=>d.example).slice(0,2).map(d=>d.example),synonyms:(m.synonyms||[]).slice(0,5)}))};
+    }catch{return{word,lang,userNotes,meanings:[]}}
+  }
+  return{word,lang,userNotes,meanings:[]};
+}
+function saveUserNote(word,lang,note,translation){
+  const existing=JSON.parse(localStorage.getItem(`userwords_${lang}`)||'{}');
+  const wk=word.toLowerCase();
+  if(!existing[wk])existing[wk]=[];
+  existing[wk].push({note,translation,addedAt:new Date().toISOString()});
+  localStorage.setItem(`userwords_${lang}`,JSON.stringify(existing));
+}
+
+// ====== STORAGE ======
+function loadSessions(){try{return JSON.parse(localStorage.getItem('interpreter_sessions')||'[]')}catch{return[]}}
+function saveSessions(s){localStorage.setItem('interpreter_sessions',JSON.stringify(s))}
+function loadCurrent(){try{return JSON.parse(localStorage.getItem('interpreter_current')||'null')}catch{return null}}
+function saveCurrent(s){s?localStorage.setItem('interpreter_current',JSON.stringify(s)):localStorage.removeItem('interpreter_current')}
+
+// ====== WORD MODAL ======
+function WordModal({word,lang,context,onClose}){
+  const[data,setData]=useState(null);
+  const[showAdd,setShowAdd]=useState(false);
+  const[newNote,setNewNote]=useState('');
+  const[newTrans,setNewTrans]=useState('');
+  const[saved,setSaved]=useState(false);
+  useEffect(()=>{lookupWord(word,lang).then(setData)},[word,lang]);
+  const handleSave=()=>{
+    if(!newNote.trim())return;
+    saveUserNote(word,lang,newNote,newTrans||undefined);
+    setSaved(true);setNewNote('');setNewTrans('');setShowAdd(false);
+    lookupWord(word,lang).then(setData);
+    setTimeout(()=>setSaved(false),2000);
+  };
+  const speak=()=>{if('speechSynthesis' in window){const u=new SpeechSynthesisUtterance(word);u.lang=lang==='en'?'en-US':'ru-RU';speechSynthesis.speak(u)}};
+  return(
+    <div className="modal-bg" onClick={onClose}>
+      <div className="modal-panel" onClick={e=>e.stopPropagation()}>
+        <div style={{padding:16,borderBottom:'1px solid #1e293b',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <div style={{display:'flex',alignItems:'center',gap:12}}>
+            <h2 style={{fontSize:24,fontWeight:'bold'}}>{word}</h2>
+            <button onClick={speak} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><VolumeIcon s={18}/></button>
+          </div>
+          <button onClick={onClose} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'transparent',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><XIcon s={20}/></button>
+        </div>
+        <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:16,display:'flex',flexDirection:'column',gap:16}}>
+          {data?.phonetic&&<p style={{fontSize:14,fontFamily:'monospace',color:'#64748b'}}>{data.phonetic}</p>}
+          {context&&<div style={{padding:12,borderRadius:8,background:'rgba(30,41,59,0.5)',borderLeft:'2px solid #3b82f6'}}><p style={{fontSize:11,color:'#475569',textTransform:'uppercase',letterSpacing:1,marginBottom:4}}>Context</p><p style={{fontSize:14,color:'#cbd5e1',fontStyle:'italic'}}>...{context}...</p></div>}
+          {data?.meanings?.length>0?(
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,color:'#60a5fa'}}><BookOpenIcon s={16}/><span style={{fontSize:13,fontWeight:500,textTransform:'uppercase',letterSpacing:1}}>Definitions</span></div>
+              {data.meanings.map((m,i)=>(<div key={i} style={{padding:12,borderRadius:8,background:'rgba(30,41,59,0.3)'}}>
+                <p style={{fontSize:12,color:'#34d399',fontWeight:500,marginBottom:8}}>{m.partOfSpeech}</p>
+                <ul style={{listStyle:'none',display:'flex',flexDirection:'column',gap:6}}>{m.definitions.map((d,j)=>(<li key={j} style={{fontSize:14,color:'#cbd5e1',lineHeight:1.6}}>{j+1}. {d}</li>))}</ul>
+                {m.examples.length>0&&<div style={{marginTop:8,paddingTop:8,borderTop:'1px solid rgba(51,65,85,0.5)'}}>{m.examples.map((ex,k)=>(<p key={k} style={{fontSize:13,color:'#64748b',fontStyle:'italic'}}>&ldquo;{ex}&rdquo;</p>))}</div>}
+                {m.synonyms.length>0&&<div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>{m.synonyms.map((s,k)=>(<span key={k} style={{fontSize:12,background:'rgba(51,65,85,0.5)',color:'#94a3b8',padding:'2px 8px',borderRadius:12}}>{s}</span>))}</div>}
+              </div>))}
+            </div>
+          ):(<div style={{textAlign:'center',padding:'24px 0',color:'#475569',fontSize:14}}>No dictionary entry. Add your own notes below.</div>)}
+          {data?.userNotes?.length>0&&(
+            <div style={{display:'flex',flexDirection:'column',gap:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,color:'#fbbf24'}}><MessageCircleIcon s={16}/><span style={{fontSize:13,fontWeight:500,textTransform:'uppercase',letterSpacing:1}}>Translator Notes</span></div>
+              {data.userNotes.map((n,i)=>(<div key={i} style={{padding:12,borderRadius:8,background:'rgba(251,191,36,0.05)',border:'1px solid rgba(251,191,36,0.2)'}}>
+                {n.translation&&<p style={{color:'#34d399',fontWeight:500,fontSize:14,marginBottom:4}}>{n.translation}</p>}
+                <p style={{fontSize:14,color:'#cbd5e1'}}>{n.note}</p>
+                <p style={{fontSize:11,color:'#475569',marginTop:4}}>{new Date(n.addedAt).toLocaleDateString()}</p>
+              </div>))}
+            </div>
+          )}
+          {showAdd?(
+            <div style={{padding:12,borderRadius:8,background:'#1e293b',border:'1px solid #334155',display:'flex',flexDirection:'column',gap:12}}>
+              <input value={newTrans} onChange={e=>setNewTrans(e.target.value)} placeholder="Translation (optional)" style={{background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'8px 12px',color:'#fff',fontSize:14}}/>
+              <textarea value={newNote} onChange={e=>setNewNote(e.target.value)} placeholder="Your note..." rows={3} style={{background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'8px 12px',color:'#fff',fontSize:14,resize:'none'}}/>
+              <div style={{display:'flex',gap:8}}>
+                <button onClick={handleSave} style={{flex:1,background:'#2563eb',color:'#fff',border:'none',padding:10,borderRadius:8,fontSize:14,fontWeight:500,cursor:'pointer'}}>Save Note</button>
+                <button onClick={()=>setShowAdd(false)} style={{padding:'10px 16px',background:'#334155',color:'#cbd5e1',border:'none',borderRadius:8,fontSize:14,cursor:'pointer'}}>Cancel</button>
+              </div>
+            </div>
+          ):(<button onClick={()=>setShowAdd(true)} style={{width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:8,padding:12,border:'1px dashed #334155',borderRadius:8,color:'#475569',background:'transparent',cursor:'pointer',fontSize:14}}><MessageSquarePlusIcon s={16}/>Add translator note</button>)}
+          {saved&&<p style={{color:'#34d399',fontSize:14,textAlign:'center'}}>Note saved!</p>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== LIVE SESSION ======
+function LiveSession({session,onAddSeg,onEnd,onSettings}){
+  const[segs,setSegs]=useState(session.segments||[]);
+  const[partial,setPartial]=useState('');
+  const[selWord,setSelWord]=useState(null);
+  const[recording,setRecording]=useState(false);
+  const endRef=useRef(null);
+
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:'smooth'})},[segs,partial]);
+
+  const handler=useCallback(async(msg)=>{
+    if(msg.type==='partial')setPartial(msg.text);
+    else if(msg.type==='final'){
+      const src=msg.text;setPartial('');
+      const trans=await translateText(src,session.sourceLang,session.targetLang);
+      const seg={id:Date.now().toString(36)+Math.random().toString(36).slice(2,5),sourceText:src,translatedText:trans,timestamp:Date.now(),isFinal:true};
+      setSegs(p=>[...p,seg]);onAddSeg(seg);
+    }
+  },[session.sourceLang,session.targetLang,onAddSeg]);
+
+  const speechLang=session.sourceLang==='ru'?'ru-RU':'en-US';
+  const{listening,error:speechErr,start:startSpeech,stop:stopSpeech}=useWebSpeech(handler,speechLang);
+
+  const startRec=useCallback(()=>{setRecording(true);startSpeech()},[startSpeech]);
+  const stopRec=useCallback(()=>{setRecording(false);stopSpeech()},[stopSpeech]);
+
+  useEffect(()=>{if(listening)setRecording(true)},[listening]);
+
+  const clickWord=(w,l,ctx)=>{const c=w.replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu,'');if(c)setSelWord({word:c,lang:l,context:ctx})};
+  const renderWords=(text,lang)=>text.split(/(\s+)/).map((w,i)=>/^\s+$/.test(w)?<span key={i}>{w}</span>:<span key={i} style={{cursor:'pointer',padding:'1px 2px',borderRadius:3,transition:'background .15s'}} onClick={()=>clickWord(w,lang,text)}>{w}</span>);
+
+  const hasError=speechErr;
+  const status=hasError?'Error':listening?'Listening':recording?'Starting...':'Ready';
+  const dotColor=hasError?'#ef4444':listening?'#10b981':'#475569';
+  const srcLabel=session.sourceLang==='ru'?'\u0420\u0443\u0441\u0441\u043a\u0438\u0439':'English';
+  const tgtLabel=session.targetLang==='en'?'English':'\u0420\u0443\u0441\u0441\u043a\u0438\u0439';
+
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      {/* Header */}
+      <div style={{flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:'rgba(15,23,42,0.8)',borderBottom:'1px solid #1e293b'}}>
+        <div style={{display:'flex',alignItems:'center',gap:8}}>
+          <div style={{width:10,height:10,borderRadius:'50%',background:dotColor,animation:listening?'pulse 1.5s infinite':undefined}}/>
+          <span style={{fontSize:12,fontWeight:500,color:'#64748b',textTransform:'uppercase',letterSpacing:1}}>{status}</span>
+        </div>
+        <button onClick={onSettings} style={{width:36,height:36,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><SettingsIcon s={18}/></button>
+      </div>
+
+      {/* Error */}
+      {hasError&&<div style={{flexShrink:0,padding:'8px 16px',background:'rgba(239,68,68,0.1)',borderBottom:'1px solid rgba(239,68,68,0.2)'}}><p style={{fontSize:12,color:'#f87171'}}>{speechErr}</p></div>}
+
+      {/* Split View */}
+      <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minHeight:0}}>
+        {/* Source */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',borderBottom:'1px solid #1e293b',minHeight:0}}>
+          <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'rgba(15,23,42,0.4)'}}>
+            <span style={{fontSize:12,fontWeight:'bold',color:'#60a5fa',textTransform:'uppercase',letterSpacing:1}}>{srcLabel}</span>
+            <ChevronUpIcon s={12}/>
+          </div>
+          <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:12,display:'flex',flexDirection:'column',gap:8}}>
+            {segs.map(s=>(<div key={s.id}><p style={{fontSize:16,lineHeight:1.6,color:'#fff'}}>{renderWords(s.sourceText,session.sourceLang)}</p><p style={{fontSize:11,color:'#475569',fontFamily:'monospace'}}>{new Date(s.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</p></div>))}
+            {partial&&<p style={{fontSize:16,lineHeight:1.6,color:'#94a3b8'}}>{renderWords(partial,session.sourceLang)}</p>}
+            <div ref={endRef}/>
+          </div>
+        </div>
+        {/* Target */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',minHeight:0}}>
+          <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:8,padding:'6px 12px',background:'rgba(15,23,42,0.4)'}}>
+            <span style={{fontSize:12,fontWeight:'bold',color:'#34d399',textTransform:'uppercase',letterSpacing:1}}>{tgtLabel}</span>
+          </div>
+          <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:12,display:'flex',flexDirection:'column',gap:8}}>
+            {segs.map(s=>(<div key={s.id}><p style={{fontSize:16,lineHeight:1.6,color:'#a7f3d0'}}>{renderWords(s.translatedText,session.targetLang)}</p></div>))}
+            {partial&&<p style={{fontSize:16,lineHeight:1.6,color:'#34d399',opacity:0.5}}>Translating...</p>}
+          </div>
+        </div>
+      </div>
+
+      {/* Controls */}
+      <div style={{flexShrink:0,padding:'12px 16px',background:'rgba(15,23,42,0.9)',borderTop:'1px solid #1e293b',backdropFilter:'blur(12px)'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:16}}>
+          {!recording?(
+            <button onClick={startRec} className="recording-pulse" style={{width:64,height:64,borderRadius:'50%',border:'none',background:'#dc2626',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(220,38,38,0.3)'}}><MicIcon s={28}/></button>
+          ):(
+            <>
+              <button onClick={stopRec} className="recording-pulse" style={{width:64,height:64,borderRadius:'50%',border:'none',background:'#dc2626',color:'#fff',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 4px 20px rgba(220,38,38,0.3)'}}><MicOffIcon s={28}/></button>
+              <button onClick={onEnd} style={{width:48,height:48,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><BookmarkIcon s={20}/></button>
+            </>
+          )}
+        </div>
+        <p style={{textAlign:'center',fontSize:12,color:'#475569',marginTop:8}}>{recording?'Tap red to stop':'Tap to start'}</p>
+      </div>
+
+      {/* Word modal */}
+      {selWord&&<WordModal word={selWord.word} lang={selWord.lang} context={selWord.context} onClose={()=>setSelWord(null)}/>}
+    </div>
+  );
+}
+
+// ====== SAVED SESSIONS ======
+function SavedSessions({sessions,onBack,onView,onDelete,onExport}){
+  const[search,setSearch]=useState('');
+  const[delId,setDelId]=useState(null);
+  const filtered=sessions.filter(s=>s.title.toLowerCase().includes(search.toLowerCase())||s.segments.some(seg=>seg.sourceText.toLowerCase().includes(search.toLowerCase())));
+  const doExport=(s)=>{const blob=new Blob([onExport(s)],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${s.title.replace(/\s+/g,'_')}_${new Date(s.createdAt).toISOString().slice(0,10)}.txt`;a.click();URL.revokeObjectURL(u)};
+  const doPrint=(s)=>{const pw=window.open('','_blank');if(pw){pw.document.write(`<html><head><title>${s.title}</title><style>body{font-family:Georgia,serif;max-width:700px;margin:40px auto;padding:20px;line-height:1.6;color:#333}h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}.meta{color:#666;font-size:13px;margin-bottom:30px}.segment{margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #eee}.time{color:#999;font-size:11px}.src{font-weight:bold;margin:5px 0}.tgt{color:#555;font-style:italic}</style></head><body><h1>${s.title}</h1><div class="meta">${new Date(s.createdAt).toLocaleString()}|${s.sourceLang}\u2192${s.targetLang}|${Math.round(s.duration/60)}min</div>${s.segments.map(x=>`<div class="segment"><div class="time">${new Date(x.timestamp).toLocaleTimeString()}</div><div class="src">${x.sourceText}</div><div class="tgt">${x.translatedText}</div></div>`).join('')}</body></html>`);pw.document.close();pw.print()}};
+  const confirmDel=(id)=>{if(delId===id){onDelete(id);setDelId(null)}else{setDelId(id);setTimeout(()=>setDelId(null),3000)}};
+
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'rgba(15,23,42,0.8)',borderBottom:'1px solid #1e293b'}}>
+        <button onClick={onBack} style={{width:36,height:36,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',marginLeft:-8}}><ArrowLeftIcon s={20}/></button>
+        <h1 style={{fontSize:18,fontWeight:600}}>Saved Sessions</h1>
+        <span style={{fontSize:12,background:'#1e293b',color:'#94a3b8',padding:'2px 8px',borderRadius:12}}>{sessions.length}</span>
+      </div>
+      <div style={{flexShrink:0,padding:'8px 16px'}}>
+        <div style={{position:'relative'}}>
+          <div style={{position:'absolute',left:12,top:'50%',transform:'translateY(-50%)',color:'#475569'}}><SearchIcon s={16}/></div>
+          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search sessions..." style={{width:'100%',background:'#0f172a',border:'1px solid #1e293b',borderRadius:12,padding:'10px 12px 10px 36px',color:'#fff',fontSize:14}}/>
+        </div>
+      </div>
+      <div className="no-scrollbar" style={{flex:1,overflowY:'auto',padding:'0 16px 16px',display:'flex',flexDirection:'column',gap:8}}>
+        {filtered.length===0&&<div style={{textAlign:'center',padding:48,color:'#475569'}}><FileTextIcon s={40}/><p style={{fontSize:14,marginTop:12}}>No sessions yet</p></div>}
+        {filtered.map(s=>
+          <div key={s.id} style={{padding:16,borderRadius:12,background:'rgba(15,23,42,0.6)',border:'1px solid #1e293b'}}>
+            <div style={{display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8}}>
+              <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>onView(s.id)}>
+                <h3 style={{fontWeight:500,color:'#fff',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{s.title}</h3>
+                <div style={{display:'flex',alignItems:'center',gap:12,marginTop:6,fontSize:12,color:'#475569'}}>
+                  <span style={{display:'flex',alignItems:'center',gap:4}}><CalendarIcon s={12}/>{new Date(s.createdAt).toLocaleDateString()}</span>
+                  <span style={{display:'flex',alignItems:'center',gap:4}}><ClockIcon s={12}/>{Math.round(s.duration/60)}min</span>
+                  <span style={{color:'#60a5fa'}}>{s.sourceLang}\u2192{s.targetLang}</span>
+                </div>
+                <p style={{fontSize:12,color:'#475569',marginTop:8,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{s.segments[0]?.sourceText||'No transcript'}</p>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:4,shrink:0}}>
+                <button onClick={()=>doExport(s)} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title="Export"><DownloadIcon s={14}/></button>
+                <button onClick={()=>doPrint(s)} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title="Print"><PrinterIcon s={14}/></button>
+                <button onClick={()=>confirmDel(s.id)} style={{width:32,height:32,borderRadius:'50%',border:'none',background:delId===s.id?'rgba(239,68,68,0.2)':'#1e293b',color:delId===s.id?'#f87171':'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title={delId===s.id?'Confirm':'Delete'}><TrashIcon s={14}/></button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ====== SESSION VIEWER ======
+function SessionViewer({session,onBack,onExport}){
+  const doExport=()=>{const blob=new Blob([onExport(session)],{type:'text/plain;charset=utf-8'});const u=URL.createObjectURL(blob);const a=document.createElement('a');a.href=u;a.download=`${session.title.replace(/\s+/g,'_')}_${new Date(session.createdAt).toISOString().slice(0,10)}.txt`;a.click();URL.revokeObjectURL(u)};
+  const doPrint=()=>{const pw=window.open('','_blank');if(pw){pw.document.write(`<html><head><title>${session.title}</title><style>body{font-family:Georgia,serif;max-width:700px;margin:40px auto;padding:20px;line-height:1.6;color:#333}h1{font-size:20px;border-bottom:2px solid #333;padding-bottom:10px}.meta{color:#666;font-size:13px;margin-bottom:30px}.segment{margin-bottom:20px;padding-bottom:15px;border-bottom:1px solid #eee}.time{color:##999;font-size:11px}.src{font-weight:bold;margin:5px 0}.tgt{color:#555;font-style:italic}</style></head><body><h1>${session.title}</h1><div class="meta">${new Date(session.createdAt).toLocaleString()}|${session.sourceLang}\u2192${session.targetLang}|${Math.round(session.duration/60)}min|${session.segments.length}segs</div>${session.segments.map(s=>`<div class="segment"><div class="time">${new Date(s.timestamp).toLocaleTimeString()}</div><div class="src">${s.sourceText}</div><div class="tgt">${s.translatedText}</div></div>`).join('')}</body></html>`);pw.document.close();pw.print()}};
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      <div style={{flexShrink:0,display:'flex',alignItems:'center',gap:12,padding:'12px 16px',background:'rgba(15,23,42,0.8)',borderBottom:'1px solid #1e293b'}}>
+        <button onClick={onBack} style={{width:36,height:36,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',marginLeft:-8}}><ArrowLeftIcon s={20}/></button>
+        <h1 style={{fontSize:18,fontWeight:600,flex:1,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{session.title}</h1>
+        <button onClick={doExport} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title="Export"><DownloadIcon s={16}/></button>
+        <button onClick={doPrint} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}} title="Print"><PrinterIcon s={16}/></button>
+      </div>
+      <div className="no-scrollbar" style={{flex:1,overflowY:'auto'}}>
+        <div style={{maxWidth:672,margin:'0 auto',padding:16,display:'flex',flexDirection:'column',gap:16}}>
+          {session.segments.length===0&&<p style={{textAlign:'center',color:'#475569',padding:48}}>No segments recorded</p>}
+          {session.segments.map(s=>
+            <div key={s.id} style={{paddingBottom:16,borderBottom:'1px solid rgba(30,41,59,0.5)'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
+                <span style={{fontSize:11,color:'#475569',fontFamily:'monospace'}}>{new Date(s.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'})}</span>
+              </div>
+              <p style={{fontSize:16,lineHeight:1.6,color:'#fff',marginBottom:6}}>{s.sourceText}</p>
+              <p style={{fontSize:16,lineHeight:1.6,color:'#a7f3d0'}}>{s.translatedText}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ====== MAIN APP ======
+function App(){
+  const[view,setView]=useState('live');
+  const[viewId,setViewId]=useState(null);
+  const[showNew,setShowNew]=useState(false);
+  const[title,setTitle]=useState('');
+  const[sourceLang,setSourceLang]=useState('ru');
+  const[targetLang,setTargetLang]=useState('en');
+  const[showSet,setShowSet]=useState(false);
+  const[sessions,setSessions]=useState([]);
+  const[current,setCurrent]=useState(null);
+  const[loaded,setLoaded]=useState(false);
+
+  useEffect(()=>{setSessions(loadSessions());setCurrent(loadCurrent());setLoaded(true)},[]);
+  useEffect(()=>{if(loaded)saveSessions(sessions)},[sessions,loaded]);
+  useEffect(()=>{saveCurrent(current)},[current]);
+
+  const create=useCallback(()=>{
+    const t=title.trim()||`Session ${new Date().toLocaleString()}`;
+    const s={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),title:t,createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),segments:[],sourceLang,targetLang,duration:0};
+    setCurrent(s);setShowNew(false);setTitle('');setView('live');
+  },[title,sourceLang,targetLang]);
+
+  const addSeg=useCallback((seg)=>{
+    setCurrent(prev=>prev?{...prev,segments:[...prev.segments,seg],updatedAt:new Date().toISOString()}:prev);
+  },[]);
+
+  const endSession=useCallback(()=>{
+    if(!current)return;
+    const fin={...current,updatedAt:new Date().toISOString(),duration:Math.round((Date.now()-new Date(current.createdAt).getTime())/1000)};
+    setSessions(p=>[fin,...p]);
+    setCurrent(null);saveCurrent(null);
+    setView('sessions');
+  },[current]);
+
+  const delSession=useCallback((id)=>setSessions(p=>p.filter(s=>s.id!==id)),[]);
+
+  const exportS=(s)=>{
+    const lines=[`Session:${s.title}`,`Date:${new Date(s.createdAt).toLocaleString()}`,`Lang:${s.sourceLang}\u2192${s.targetLang}`,`Dur:${Math.round(s.duration/60)}min`,'','---TRANSCRIPT---',''];
+    for(const x of s.segments){lines.push(`[${new Date(x.timestamp).toLocaleTimeString()}]`,`${s.sourceLang.toUpperCase()}:${x.sourceText}`,`${s.targetLang.toUpperCase()}:${x.translatedText}`,'')}
+    return lines.join('\n');
+  };
+
+  const viewing=viewId?sessions.find(s=>s.id===viewId):null;
+
+  const NavBtn=({Icon,label,active,onClick})=>(<button onClick={onClick} style={{display:'flex',flexDirection:'column',alignItems:'center',gap:2,padding:'8px 16px',borderRadius:12,border:'none',background:'transparent',color:active?'#60a5fa':'#475569',fontSize:10,fontWeight:500,cursor:'pointer'}}><Icon s={22}/><span>{label}</span></button>);
+
+  if(!loaded)return <div style={{height:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:'#020617'}}><div style={{width:40,height:40,border:'2px solid #2563eb',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite'}}/></div>;
+
+  return(
+    <div style={{height:'100%',display:'flex',flexDirection:'column',background:'#020617'}}>
+      <div style={{flex:1,overflow:'hidden',minHeight:0}}>
+        {!current&&view==='live'&&(
+          <div style={{height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:'0 24px'}}>
+            <div style={{width:80,height:80,borderRadius:'50%',background:'rgba(37,99,235,0.1)',display:'flex',alignItems:'center',justifyContent:'center',marginBottom:24}}><MicIcon s={36}/></div>
+            <h1 style={{fontSize:28,fontWeight:'bold',marginBottom:8}}>Interpreter Pro</h1>
+            <p style={{color:'#475569',textAlign:'center',fontSize:14,marginBottom:32,maxWidth:280}}>Real-time transcription & translation. Works entirely on your phone.</p>
+            <button onClick={()=>setShowNew(true)} style={{width:'100%',maxWidth:320,background:'#2563eb',color:'#fff',border:'none',padding:16,borderRadius:16,fontSize:18,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:12,boxShadow:'0 4px 20px rgba(37,99,235,0.3)'}}><PlusIcon s={22}/>New Session</button>
+            <p style={{color:'#334155',fontSize:12,marginTop:24}}>Russian \u2194 English \u00b7 Free \u00b7 No signup</p>
+          </div>
+        )}
+        {current&&view==='live'&&<LiveSession session={current} onAddSeg={addSeg} onEnd={endSession} onSettings={()=>setShowSet(true)}/>}
+        {view==='sessions'&&<SavedSessions sessions={sessions} onBack={()=>setView('live')} onView={id=>{setViewId(id);setView('detail')}} onDelete={delSession} onExport={exportS}/>}
+        {view==='detail'&&viewing&&<SessionViewer session={viewing} onBack={()=>setView('sessions')} onExport={exportS}/>}
+      </div>
+      {(current||view!=='live'||sessions.length>0)&&(
+        <div style={{flexShrink:0,display:'flex',alignItems:'center',justifyContent:'space-around',background:'rgba(15,23,42,0.9)',borderTop:'1px solid #1e293b',backdropFilter:'blur(12px)',paddingBottom:'env(safe-area-inset-bottom,0px)'}}>
+          <NavBtn Icon={MicIcon} label="Live" active={view==='live'} onClick={()=>setView('live')}/>
+          <NavBtn Icon={PlusIcon} label="New" active={false} onClick={()=>setShowNew(true)}/>
+          <NavBtn Icon={ArchiveIcon} label="Saved" active={view==='sessions'||view==='detail'} onClick={()=>setView('sessions')}/>
+        </div>
+      )}
+
+      {showNew&&<div className="modal-bg" onClick={()=>setShowNew(false)}>
+        <div className="modal-panel" style={{padding:20}} onClick={e=>e.stopPropagation()}>
+          <h2 style={{fontSize:18,fontWeight:600,marginBottom:16}}>New Session</h2>
+          <input value={title} onChange={e=>setTitle(e.target.value)} onKeyDown={e=>e.key==='Enter'&&create()} placeholder="Session name..." autoFocus style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:10,padding:'12px 16px',color:'#fff',fontSize:16,marginBottom:12}}/>
+          <div style={{display:'flex',gap:12,marginBottom:16}}>
+            <div style={{flex:1}}><label style={{fontSize:12,color:'#475569',display:'block',marginBottom:4}}>From</label>
+              <select value={sourceLang} onChange={e=>setSourceLang(e.target.value)} style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'8px 12px',color:'#fff',fontSize:14}}><option value="ru">Russian</option><option value="en">English</option></select>
+            </div>
+            <div style={{flex:1}}><label style={{fontSize:12,color:'#475569',display:'block',marginBottom:4}}>To</label>
+              <select value={targetLang} onChange={e=>setTargetLang(e.target.value)} style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'8px 12px',color:'#fff',fontSize:14}}><option value="en">English</option><option value="ru">Russian</option></select>
+            </div>
+          </div>
+          <button onClick={create} style={{width:'100%',background:'#2563eb',color:'#fff',border:'none',padding:14,borderRadius:12,fontSize:16,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}><CheckIcon s={18}/>Start Session</button>
+        </div>
+      </div>}
+
+      {showSet&&<div className="modal-bg" onClick={()=>setShowSet(false)}>
+        <div className="modal-panel" style={{padding:20}} onClick={e=>e.stopPropagation()}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:16}}>
+            <h2 style={{fontSize:18,fontWeight:600}}>Settings</h2>
+            <button onClick={()=>setShowSet(false)} style={{width:32,height:32,borderRadius:'50%',border:'none',background:'#1e293b',color:'#94a3b8',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center'}}><XIcon s={18}/></button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div><label style={{fontSize:12,color:'#475569',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:6}}>Source Language</label>
+              <select value={sourceLang} onChange={e=>setSourceLang(e.target.value)} style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'10px 12px',color:'#fff',fontSize:14}}><option value="ru">Russian</option><option value="en">English</option></select>
+            </div>
+            <div><label style={{fontSize:12,color:'#475569',textTransform:'uppercase',letterSpacing:1,display:'block',marginBottom:6}}>Target Language</label>
+              <select value={targetLang} onChange={e=>setTargetLang(e.target.value)} style={{width:'100%',background:'#0f172a',border:'1px solid #334155',borderRadius:8,padding:'10px 12px',color:'#fff',fontSize:14}}><option value="en">English</option><option value="ru">Russian</option></select>
+            </div>
+          </div>
+        </div>
+      </div>}
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App/>);
+</script>
+</body>
+</html>

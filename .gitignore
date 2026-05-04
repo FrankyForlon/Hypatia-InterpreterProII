@@ -1,0 +1,5 @@
+.env
+node_modules/
+sessions.json
+userwords.json
+.DS_Store
