@@ -93,7 +93,7 @@ const GLOSSARY=[
 let recognition=null;
 function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
 
-function useSpeech(onResult,lang,listening){useEffect(()=>{if(!listening)return;const r=getRec();if(!r)return;r.continuous=true;r.interimResults=true;r.lang=lang;r.onresult=(e)=>{const t=Array.from(e.results).map(r=>r[0].transcript).join("");if(t)onResult(t)};r.onerror=(e)=>{console.log("rec error",e.error)};r.start();recognition=r;return()=>{try{r.stop()}catch(e){}}},[listening,lang]);}
+function useSpeech(onResult,lang,listening){useEffect(()=>{if(!listening)return;const r=getRec();if(!r)return;r.continuous=true;r.interimResults=true;r.lang=lang;r.onresult=(e)=>{for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){const t=e.results[i][0].transcript;if(t.trim())onResult(t.trim())}}};r.onerror=(e)=>{console.log("rec error",e.error)};r.start();recognition=r;return()=>{try{r.stop()}catch(e){}}},[listening,lang]);}
 
 async function translateMyMemory(text,source,target){try{const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair="+source+"|"+target;const r=await fetch(url);const d=await r.json();if(d.responseStatus===200&&d.responseData&&d.responseData.translatedText)return d.responseData.translatedText;return null;}catch(e){return null;}}
 
