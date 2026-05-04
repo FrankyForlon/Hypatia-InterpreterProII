@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Constance — How to Use / Руководство</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0f0f0f;color:#fff;line-height:1.6}
+.container{max-width:720px;margin:0 auto;padding:20px}
+h1{font-size:28px;margin-bottom:4px;color:#fff}
+h2{font-size:20px;color:#22c55e;margin:28px 0 12px;border-bottom:1px solid #333;padding-bottom:8px}
+h3{font-size:16px;color:#aaa;margin:18px 0 8px}
+p{margin-bottom:12px;font-size:15px;color:#ccc}
+.lang-switch{display:flex;gap:8px;margin-bottom:20px}
+.lang-switch button{flex:1;padding:10px;background:#1e1e1e;border:1px solid #333;color:#888;border-radius:8;cursor:pointer;font-size:14px}
+.lang-switch button.active{background:#22c55e;color:#fff;border-color:#22c55e}
+.section{display:none}
+.section.active{display:block}
+.step{display:flex;gap:12px;margin-bottom:16px;background:#1e1e1e;padding:14px;border-radius:12px}
+.num{flex-shrink:0;width:32px;height:32px;background:#22c55e;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.step-content{flex:1}
+.step-content strong{color:#fff;display:block;margin-bottom:4px}
+.tip{background:#1a2a1a;border-left:3px solid #22c55e;padding:12px 16px;margin:16px 0;border-radius:0 8px 8px 0;font-size:14px;color:#aaa}
+.tip strong{color:#22c55e}
+a{color:#22c55e;text-decoration:none}
+a:hover{text-decoration:underline}
+.link-box{background:#1e1e1e;padding:16px;border-radius:12px;margin:20px 0;text-align:center}
+.link-box a{font-size:18px;font-weight:600}
+.footer{text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid #333;color:#666;font-size:13px}
+ol{padding-left:20px;margin-bottom:16px}
+ol li{color:#ccc;margin-bottom:8px;font-size:15px}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>Constance Interpreter Pro</h1>
+<p style="color:#888;margin-bottom:20px">Real-Time Medical Interpreting Assistant</p>
+
+<div class="lang-switch">
+  <button class="active" onclick="showLang('en')">English</button>
+  <button onclick="showLang('ru')">Русский</button>
+</div>
+
+<div class="link-box">
+  <div style="color:#888;font-size:13px;margin-bottom:8px">APP LINK / ССЫЛКА НА ПРИЛОЖЕНИЕ</div>
+  <a href="https://4id5ijcscnr5a.kimi.page">https://4id5ijcscnr5a.kimi.page</a>
+</div>
+
+<!-- ENGLISH -->
+<div id="en" class="section active">
+
+<h2>Quick Start</h2>
+
+<div class="step">
+  <div class="num">1</div>
+  <div class="step-content">
+    <strong>Open the app on your phone</strong>
+    Use Chrome or Samsung Internet. Open the link above directly — not inside Facebook, Instagram, or a chat app.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">2</div>
+  <div class="step-content">
+    <strong>Allow microphone access</strong>
+    When the browser asks for mic permission, tap "Allow." If you miss it, tap the lock icon in the address bar → Site Settings → Microphone → Allow.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">3</div>
+  <div class="step-content">
+    <strong>Tap "Start Session"</strong>
+    The app starts listening for Russian speech by default. Speak into your phone — you'll see your Russian words appear in white and the English translation in green below it.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">4</div>
+  <div class="step-content">
+    <strong>Switch direction</strong>
+    Tap "RU &lt;-&gt; EN" in the top bar to switch between Russian-to-English and English-to-Russian interpreting.
+  </div>
+</div>
+
+<h2>During a Session</h2>
+
+<div class="step">
+  <div class="num">5</div>
+  <div class="step-content">
+    <strong>Tap any word for definitions</strong>
+    Tap any word in the transcript (white or green) to open the dictionary. You'll see the translation, glossary match (if it's a medical term), and full English definitions.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">6</div>
+  <div class="step-content">
+    <strong>Type manually</strong>
+    Use the text field at the bottom to type words or phrases, then tap the green arrow button to add them to the transcript.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">7</div>
+  <div class="step-content">
+    <strong>Edit a segment</strong>
+    Each transcript segment has an "E" button. Tap it to edit the source text or translation without re-speaking the whole sentence.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">8</div>
+  <div class="step-content">
+    <strong>Delete a segment</strong>
+    Tap "x" on any segment to remove it. Your transcript stays safe when you switch between Live, Saved, and Glossary tabs.
+  </div>
+</div>
+
+<h2>Glossary Tab</h2>
+<p>Tap "Glossary" to browse 20 core medical engineering terms. Use the search bar to find terms in English or Russian. Tap any term to see its definition.</p>
+
+<h2>Save and Export</h2>
+<p>Tap "Save" to store your session on the phone. Go to the "Saved" tab to view past sessions. Tap "Export" to download a .txt file for your client or records.</p>
+
+<h2>Mic Not Working?</h2>
+<ol>
+  <li><strong>Use Chrome or Samsung Internet</strong> — not Facebook Messenger's browser, not Instagram in-app browser.</li>
+  <li><strong>Check mic permissions:</strong> Phone Settings → Apps → Chrome → Permissions → Microphone → Allow.</li>
+  <li><strong>Disable battery restrictions:</strong> Battery &amp; Device Care → Background Usage Limits → Don't restrict Chrome.</li>
+  <li><strong>Refresh the page</strong> after changing settings.</li>
+  <li><strong>Pause/Resume:</strong> If the mic stops during a long session, tap "Pause" then "Resume."</li>
+</ol>
+
+<h2>Pro Tip: Better Medical Dictionary</h2>
+<div class="tip">
+  <strong>For the best medical definitions,</strong> get a free API key from <a href="https://www.dictionaryapi.com/register/index">dictionaryapi.com</a> (Merriam-Webster Medical Dictionary, 75,000+ terms). Once you have your key, open the app source and paste it into the <code>MW_MEDICAL_KEY</code> field at the top. This replaces generic definitions with authoritative medical definitions.
+</div>
+
+</div>
+
+<!-- RUSSIAN -->
+<div id="ru" class="section">
+
+<h2>Быстрый старт</h2>
+
+<div class="step">
+  <div class="num">1</div>
+  <div class="step-content">
+    <strong>Откройте приложение на телефоне</strong>
+    Используйте Chrome или Samsung Internet. Откройте ссылку выше напрямую — не через Facebook, Instagram или мессенджер.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">2</div>
+  <div class="step-content">
+    <strong>Разрешите доступ к микрофону</strong>
+    Когда браузер запросит разрешение на доступ к микрофону, нажмите «Разрешить». Если вы пропустили это, нажмите на значок замка в адресной строке → Настройки сайта → Микрофон → Разрешить.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">3</div>
+  <div class="step-content">
+    <strong>Нажмите «Start Session»</strong>
+    Приложение по умолчанию начинает слушать русскую речь. Говорите в телефон — ваши русские слова появятся белым цветом, а английский перевод — зеленым.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">4</div>
+  <div class="step-content">
+    <strong>Переключайте направление</strong>
+    Нажмите «RU &lt;-&gt; EN» в верхней панели, чтобы переключаться между русско-английским и англо-русским переводом.
+  </div>
+</div>
+
+<h2>Во время сессии</h2>
+
+<div class="step">
+  <div class="num">5</div>
+  <div class="step-content">
+    <strong>Нажмите на любое слово для определения</strong>
+    Нажмите на любое слово в транскрипции (белое или зеленое), чтобы открыть словарь. Вы увидите перевод, совпадение по глоссарию (если это медицинский термин) и полные английские определения.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">6</div>
+  <div class="step-content">
+    <strong>Печатайте вручную</strong>
+    Используйте текстовое поле внизу, чтобы ввести слова или фразы, затем нажмите зеленую кнопку со стрелкой, чтобы добавить их в транскрипцию.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">7</div>
+  <div class="step-content">
+    <strong>Редактируйте сегмент</strong>
+    У каждого сегмента транскрипции есть кнопка «E». Нажмите её, чтобы отредактировать исходный текст или перевод без повторного произнесения всего предложения.
+  </div>
+</div>
+
+<div class="step">
+  <div class="num">8</div>
+  <div class="step-content">
+    <strong>Удаляйте сегмент</strong>
+    Нажмите «x» на любом сегменте, чтобы удалить его. Ваша транскрипция сохраняется при переключении между вкладками Live, Saved и Glossary.
+  </div>
+</div>
+
+<h2>Вкладка «Glossary» (Глоссарий)</h2>
+<p>Нажмите «Glossary», чтобы просмотреть 20 основных медицинских инженерных терминов. Используйте строку поиска, чтобы найти термины на английском или русском. Нажмите на любой термин, чтобы увидеть его определение.</p>
+
+<h2>Сохранение и экспорт</h2>
+<p>Нажмите «Save», чтобы сохранить сессию на телефоне. Перейдите на вкладку «Saved», чтобы просмотреть прошлые сессии. Нажмите «Export», чтобы скачать .txt-файл для клиента или записей.</p>
+
+<h2>Микрофон не работает?</h2>
+<ol>
+  <li><strong>Используйте Chrome или Samsung Internet</strong> — не встроенный браузер Facebook Messenger или Instagram.</li>
+  <li><strong>Проверьте разрешения микрофона:</strong> Настройки телефона → Приложения → Chrome → Разрешения → Микрофон → Разрешить.</li>
+  <li><strong>Отключите ограничения батареи:</strong> Battery &amp; Device Care → Background Usage Limits → Не ограничивать Chrome.</li>
+  <li><strong>Обновите страницу</strong> после изменения настроек.</li>
+  <li><strong>Пауза/Возобновление:</strong> Если микрофон перестает работать во время длинной сессии, нажмите «Pause», затем «Resume».</li>
+</ol>
+
+<h2>Совет профессионала: улучшенный медицинский словарь</h2>
+<div class="tip">
+  <strong>Для лучших медицинских определений</strong> получите бесплатный API-ключ на <a href="https://www.dictionaryapi.com/register/index">dictionaryapi.com</a> (Merriam-Webster Medical Dictionary, 75 000+ терминов). Получив ключ, откройте исходный код приложения и вставьте его в поле <code>MW_MEDICAL_KEY</code> вверху. Это заменит общие определения на авторитетные медицинские.
+</div>
+
+</div>
+
+<div class="footer">
+  Constance Interpreter Pro — Built for University of Utah Medical Engineering interpreters<br>
+  <a href="https://4id5ijcscnr5a.kimi.page">Open App / Открыть приложение</a>
+</div>
+
+<script>
+function showLang(lang){
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.lang-switch button').forEach(b=>b.classList.remove('active'));
+  document.getElementById(lang).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

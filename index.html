@@ -90,8 +90,24 @@ const GLOSSARY=[
 {en:"Vascular",ru:"Sosudisty",def:"Relating to blood vessels and circulation."}
 ];
 
+// CONFIG: Paste your Merriam-Webster Medical API key here (get free at dictionaryapi.com)
+// With a key: medical definitions from Merriam-Webster (75K+ terms)
+// Without: falls back to FreeDictionary + Wikipedia
+const MW_MEDICAL_KEY="";
+
 let recognition=null;
 function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
+
+// Detect if a translation result is just a phonetic transliteration (e.g. "зовут" -> "zovut")
+function isTransliteration(original,result){
+  if(!original||!result)return true;
+  if(/[\u0400-\u04FF]/.test(original)&&/^[a-z]+$/.test(result.replace(/\s/g,""))){
+    const origLen=original.replace(/\s/g,"").length;
+    const resLen=result.replace(/\s/g,"").length;
+    if(Math.abs(origLen-resLen)<=2)return true;
+  }
+  return false;
+}
 
 function useSpeech(onResult,lang,listening){useEffect(()=>{if(!listening)return;const r=getRec();if(!r)return;r.continuous=true;r.interimResults=true;r.lang=lang;r.onresult=(e)=>{for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){const t=e.results[i][0].transcript;if(t.trim())onResult(t.trim())}}};r.onerror=(e)=>{console.log("rec error",e.error)};r.start();recognition=r;return()=>{try{r.stop()}catch(e){}}},[listening,lang]);}
 
@@ -104,6 +120,11 @@ async function translate(text,source,target){if(!text||text.length<2)return text
 async function fetchDefinition(word){try{const r=await fetch("https://api.dictionaryapi.dev/api/v2/entries/en/"+encodeURIComponent(word.toLowerCase()));const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].meanings){return d[0].meanings.map(m=>({pos:m.partOfSpeech,defs:m.definitions.slice(0,2).map(x=>x.definition)}));}}catch(e){}return null;}
 
 async function fetchWikipedia(word){try{const r=await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(word));const d=await r.json();if(d.extract)return d.extract;}catch(e){}return null;}
+
+async function fetchMerriamWebsterMedical(word){
+  if(!MW_MEDICAL_KEY)return null;
+  try{const r=await fetch("https://www.dictionaryapi.com/api/v3/references/medical/json/"+encodeURIComponent(word)+"?key="+MW_MEDICAL_KEY);const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].shortdef&&d[0].shortdef.length){return{fl:d[0].fl||"medical",defs:d[0].shortdef.slice(0,3)};}}catch(e){}return null;
+}
 
 function findGlossary(word){
   const w=word.toLowerCase();
@@ -123,6 +144,7 @@ function findGlossary(word){
 
 function WordModal({word,onClose}){
   const [enDefs,setEnDefs]=useState(null);
+  const [medDefs,setMedDefs]=useState(null);
   const [wiki,setWiki]=useState(null);
   const [toEn,setToEn]=useState(null);
   const [toRu,setToRu]=useState(null);
@@ -132,21 +154,35 @@ function WordModal({word,onClose}){
   const stripTag=s=>s?s.replace(/^\[[A-Z]{2}\]\s*/,""):s;
 
   useEffect(()=>{
-    setEnDefs(null);setWiki(null);setToEn(null);setToRu(null);setLoading(true);
+    setEnDefs(null);setMedDefs(null);setWiki(null);setToEn(null);setToRu(null);setLoading(true);
     async function load(){
       if(isRu){
+        // Russian word: translate to English, then look up English defs
         const en=await translate(word,"ru","en");
-        setToEn(en);
-        const clean=stripTag(en);
+        if(!isTransliteration(word,stripTag(en)))setToEn(en);
+        const clean=stripTag(en)||word;
+        // Try Merriam-Webster Medical first if key is set
+        const mw=await fetchMerriamWebsterMedical(clean);
+        if(mw)setMedDefs(mw);
+        // Also try FreeDictionary
         const defs=await fetchDefinition(clean);
         if(defs)setEnDefs(defs);
-        else{const w=await fetchWikipedia(clean);if(w)setWiki(w);}
+        // Wikipedia fallback
+        if(!mw&&!defs){const w=await fetchWikipedia(clean);if(w)setWiki(w);}
       }else{
-        const defs=await fetchDefinition(word);
+        // English word: look up defs, translate to Russian
+        const clean=word.toLowerCase().replace(/[^a-z]/gi,"")||word;
+        // Try Merriam-Webster Medical first
+        const mw=await fetchMerriamWebsterMedical(clean);
+        if(mw)setMedDefs(mw);
+        // Also try FreeDictionary
+        const defs=await fetchDefinition(clean);
         if(defs)setEnDefs(defs);
-        else{const w=await fetchWikipedia(word);if(w)setWiki(w);}
+        // Wikipedia fallback
+        if(!mw&&!defs){const w=await fetchWikipedia(clean);if(w)setWiki(w);}
+        // Russian translation
         const ru=await translate(word,"en","ru");
-        setToRu(ru);
+        if(ru&&ru!==word)setToRu(ru);
       }
       setLoading(false);
     }
@@ -160,31 +196,42 @@ function WordModal({word,onClose}){
 
       loading&&React.createElement("div",{className:"dict-def"},"Looking up..."),
 
+      // Glossary match (bidirectional)
       gloss&&React.createElement("div",{style:{background:"#1a3a1a",padding:10,borderRadius:8,marginBottom:12,marginTop:4}},
         React.createElement("div",{style:{color:"#22c55e",fontSize:12,fontWeight:600,marginBottom:4}},"GLOSSARY MATCH"),
         React.createElement("div",{style:{color:"#fff",fontSize:15,fontWeight:600}},isRu?gloss.en:gloss.ru),
         React.createElement("div",{className:"dict-def",style:{marginBottom:0,marginTop:4}},gloss.def)
       ),
 
-      isRu?(toEn&&React.createElement("div",{className:"dict-ru"},
-        React.createElement("span",{style:{color:"#888"}},"Translation: "),
-        stripTag(toEn)
-      )):(toRu&&React.createElement("div",{className:"dict-ru"},
-        React.createElement("span",{style:{color:"#888"}},"Russian: "),
-        stripTag(toRu)
-      )),
+      // Translation line
+      isRu?(
+        toEn?React.createElement("div",{className:"dict-ru"},React.createElement("span",{style:{color:"#888"}},"English: "),stripTag(toEn)):
+        !loading&&React.createElement("div",{className:"dict-def",style:{color:"#666",fontStyle:"italic"}},"No English translation available.")
+      ):(
+        toRu?React.createElement("div",{className:"dict-ru"},React.createElement("span",{style:{color:"#888"}},"Russian: "),stripTag(toRu)):
+        !loading&&React.createElement("div",{className:"dict-def",style:{color:"#666",fontStyle:"italic"}},"No Russian translation available.")
+      ),
 
+      // Merriam-Webster Medical definitions
+      medDefs&&React.createElement("div",{style:{marginBottom:14}},
+        React.createElement("div",{className:"dict-pos"},"Merriam-Webster Medical — "+medDefs.fl),
+        medDefs.defs.map((def,j)=>React.createElement("div",{key:j,className:"dict-def"},"• "+def))
+      ),
+
+      // FreeDictionary definitions
       enDefs&&enDefs.map((m,i)=>React.createElement("div",{key:i,style:{marginBottom:14}},
         React.createElement("div",{className:"dict-pos"},m.pos),
         m.defs.map((def,j)=>React.createElement("div",{key:j,className:"dict-def"},"• "+def))
       )),
 
+      // Wikipedia fallback
       wiki&&React.createElement("div",{style:{marginBottom:14}},
         React.createElement("div",{className:"dict-pos"},"Wikipedia"),
         React.createElement("div",{className:"dict-def"},wiki)
       ),
 
-      !loading&&!gloss&&!enDefs&&!wiki&&!toEn&&!toRu&&
+      // Nothing found
+      !loading&&!gloss&&!medDefs&&!enDefs&&!wiki&&!toEn&&!toRu&&
         React.createElement("div",{className:"dict-def"},"No results found. Try another word or check the Glossary tab.")
     )
   );
