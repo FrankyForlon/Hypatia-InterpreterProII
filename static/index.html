@@ -66,7 +66,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div id="root"></div>
 <script>
 window.onerror=function(msg,url,line){document.body.innerHTML='<pre style=color:red;padding:20px>Error: '+msg+' at line '+line+'</pre>';};
-const {useState,useEffect,useRef} = React;
+const {useState,useEffect,useRef,useCallback} = React;
 
 const GLOSSARY=[
 {en:"Angiography",ru:"Angiografiya",def:"Imaging of blood vessels using contrast dye and X-rays."},
@@ -114,7 +114,39 @@ function isTransliteration(original,result){
   return false;
 }
 
-function useSpeech(onResult,lang,listening){useEffect(()=>{if(!listening)return;const r=getRec();if(!r)return;r.continuous=true;r.interimResults=true;r.lang=lang;r.onresult=(e)=>{for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){const t=e.results[i][0].transcript;if(t.trim())onResult(t.trim())}}};r.onerror=(e)=>{console.log("rec error",e.error)};r.start();recognition=r;return()=>{try{r.stop()}catch(e){}}},[listening,lang]);}
+function useSpeech(onResult,lang,listening){
+  const lastIdxRef=useRef(-1);
+  const lastTextRef=useRef("");
+  const lastTimeRef=useRef(0);
+  useEffect(()=>{
+    if(!listening)return;
+    lastIdxRef.current=-1;
+    const r=getRec();
+    if(!r)return;
+    r.continuous=true;
+    r.interimResults=true;
+    r.lang=lang;
+    r.onresult=(e)=>{
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal && i>lastIdxRef.current){
+          lastIdxRef.current=i;
+          const t=e.results[i][0].transcript.trim();
+          if(!t)return;
+          // Deduplicate: same text within 2 seconds = skip
+          const now=Date.now();
+          if(t===lastTextRef.current && now-lastTimeRef.current<2000)return;
+          lastTextRef.current=t;
+          lastTimeRef.current=now;
+          onResult(t);
+        }
+      }
+    };
+    r.onerror=(e)=>{console.log("rec error",e.error)};
+    r.start();
+    recognition=r;
+    return()=>{try{r.stop()}catch(e){}};
+  },[listening,lang]);
+}
 
 async function translateMyMemory(text,source,target){try{const url="https://api.mymemory.translated.net/get?q="+encodeURIComponent(text)+"&langpair="+source+"|"+target;const r=await fetch(url);const d=await r.json();if(d.responseStatus===200&&d.responseData&&d.responseData.translatedText)return d.responseData.translatedText;return null;}catch(e){return null;}}
 
