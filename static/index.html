@@ -4,12 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta name="theme-color" content="#0f0f0f">
-<link rel="manifest" href="/manifest.json">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Hypatia">
-<title>Hypatia Interpreter Pro</title>
+<title>Constance Interpreter Pro</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <style>
@@ -93,40 +88,46 @@ const MW_MEDICAL_KEY="63cc7ca6-8850-4310-b9c0-69890f31bc7d";
 const MW_COLLEGIATE_KEY="4c2d0de6-f0d5-46eb-a444-7af263f7cec3";
 
 let recognition=null;
-let lastProcessedIndex=-1;
-let lastFinalText="";
-let lastFinalTime=0;
 
 function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
 
 function useSpeech(onResult,lang,listening){
+  const bufferRef=useRef('');
+  const timerRef=useRef(null);
+  const onResultRef=useRef(onResult);
+  onResultRef.current=onResult;
   useEffect(()=>{
     if(!listening)return;
-    lastProcessedIndex=-1;
+    bufferRef.current='';
+    clearTimeout(timerRef.current);
     const r=getRec();
     if(!r)return;
     r.continuous=true;
     r.interimResults=true;
     r.lang=lang;
     r.maxAlternatives=1;
-    r.onresult=(e)=>{
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        if(!e.results[i].isFinal)continue;
-        if(i<=lastProcessedIndex)continue;
-        lastProcessedIndex=i;
-        const t=e.results[i][0].transcript.trim();
-        if(!t)return;
-        const now=Date.now();
-        if(t===lastFinalText && now-lastFinalTime<3000)return;
-        lastFinalText=t;
-        lastFinalTime=now;
-        onResult(t);
+    const flush=()=>{
+      clearTimeout(timerRef.current);
+      if(bufferRef.current.trim()){
+        onResultRef.current(bufferRef.current.trim());
+        bufferRef.current='';
       }
     };
-    r.onerror=(e)=>{if(e.error!=='no-speech')console.log('rec',e.error)};
+    r.onresult=(e)=>{
+      for(let i=e.resultIndex;i<e.results.length;i++){
+        if(e.results[i].isFinal)bufferRef.current+=e.results[i][0].transcript;
+      }
+      clearTimeout(timerRef.current);
+      timerRef.current=setTimeout(flush,800);
+    };
+    r.onend=flush;
+    r.onerror=(e)=>{
+      if(e.error!=='no-speech'&&e.error!=='aborted')console.log('rec',e.error);
+      flush();
+    };
     r.start();
     recognition=r;
-    return()=>{try{r.stop()}catch(e){}};
+    return()=>{clearTimeout(timerRef.current);try{r.stop()}catch(e){}};
   },[listening,lang]);
 }
 
@@ -244,7 +245,6 @@ function Seg({s,onTap,onDel}){
 }
 
 function LiveSession({source,segs,setSegs,onSave}){
-  const [txt,setTxt]=useState('');
   const [listening,setListen]=useState(true);
   const [status,setStatus]=useState('Starting...');
   const [current,setCurrent]=useState(source);
@@ -255,13 +255,10 @@ function LiveSession({source,segs,setSegs,onSave}){
   useEffect(()=>{setCurrent(source);},[source]);
 
   useSpeech(async(t)=>{
-    if(!t||t===txt)return;
-    setTxt(t);
     setStatus('Listening...');
     const trans=await translate(t,current,current==='ru'?'en':'ru');
     const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
     setSegs(p=>[...p,seg]);
-    setTxt('');
     setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:'smooth'}),100);
   },current==='ru'?'ru-RU':'en-US',listening);
 
@@ -304,19 +301,19 @@ function LiveSession({source,segs,setSegs,onSave}){
 function SavedSessions({onOpen}){
   const [items,setItems]=useState([]);
   useEffect(()=>{
-    const keys=Object.keys(localStorage).filter(k=>k.startsWith('hypatia_')).sort().reverse();
+    const keys=Object.keys(localStorage).filter(k=>k.startsWith('constance_')).sort().reverse();
     setItems(keys.map(k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}).filter(Boolean));
   },[]);
-  const del=(key)=>{localStorage.removeItem(key);setItems(p=>p.filter((_,i)=>{const k=Object.keys(localStorage).filter(x=>x.startsWith('hypatia_')).sort().reverse()[i];return k!==key;}));};
+  const del=(key)=>{localStorage.removeItem(key);setItems(p=>p.filter((_,i)=>{const k=Object.keys(localStorage).filter(x=>x.startsWith('constance_')).sort().reverse()[i];return k!==key;}));};
   const exp=(item,key)=>{
     const segs=JSON.parse(item.data||'[]');
     const lines=segs.map(s=>'['+s.lang+'] '+s.time+'\nSOURCE: '+s.text+'\nTRANS: '+s.trans).join('\n\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines],{type:'text/plain'}));a.download='session_'+key.replace('hypatia_','')+'.txt';a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines],{type:'text/plain'}));a.download='session_'+key.replace('constance_','')+'.txt';a.click();
   };
   return React.createElement('div',{style:{padding:10,overflowY:'auto',height:'100%'}},
     items.length===0&&React.createElement('div',{className:'empty'},'No saved sessions yet.'),
     items.map((item,idx)=>{
-      const key=Object.keys(localStorage).filter(k=>k.startsWith('hypatia_')).sort().reverse()[idx];
+      const key=Object.keys(localStorage).filter(k=>k.startsWith('constance_')).sort().reverse()[idx];
       return React.createElement('div',{className:'saved-item',key:key||idx},
         React.createElement('div',{onClick:()=>onOpen(item)},
           React.createElement('div',{className:'saved-title'},item.title||'Session'),
@@ -371,7 +368,7 @@ function App(){
   const [segs,setSegs]=useState([]);
 
   if(!started)return React.createElement('div',{className:'start-overlay'},
-    React.createElement('div',{style:{fontSize:32,fontWeight:700,marginBottom:8}},'Hypatia'),
+    React.createElement('div',{style:{fontSize:32,fontWeight:700,marginBottom:8}},'Constance'),
     React.createElement('div',{style:{fontSize:16,color:'#22c55e',marginBottom:4}},'Interpreter Pro'),
     React.createElement('div',{className:'start-sub'},'Real-time Russian-English transcription, translation & medical glossary.'),
     React.createElement('div',{className:'start-sub'},'Tap words for definitions. Save sessions for client delivery.'),
@@ -392,15 +389,6 @@ function App(){
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-
-// Register service worker for PWA
-if('serviceWorker' in navigator){
-  navigator.serviceWorker.register('/sw.js').catch(function(err){
-    console.log('SW registration failed:', err);
-  });
-}
 </script>
 </body>
-</html>
-</html>
 </html>
