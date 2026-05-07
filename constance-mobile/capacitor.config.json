@@ -1,0 +1,24 @@
+{
+  "appId": "com.petergolub.constance",
+  "appName": "Constance Interpreter Pro",
+  "webDir": ".",
+  "bundledWebRuntime": false,
+  "server": {
+    "url": "https://4id5ijcscnr5a.kimi.page",
+    "cleartext": true
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": "",
+      "keystorePassword": "",
+      "keystoreAlias": "",
+      "keystoreAliasPassword": "",
+      "releaseType": "APK"
+    }
+  },
+  "plugins": {
+    "Microphone": {
+      "permissions": ["android.permission.RECORD_AUDIO"]
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "constance-interpreter-pro",
+  "version": "4.0.0",
+  "description": "Constance Interpreter Pro - Mobile App",
+  "main": "index.html",
+  "scripts": {
+    "setup": "npm install && npx cap add android",
+    "build": "npx cap sync",
+    "open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/cli": "^6.0.0"
+  }
+}
