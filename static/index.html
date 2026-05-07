@@ -91,43 +91,46 @@ let recognition=null;
 
 function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
 
-function useSpeech(onResult,lang,listening){
-  const bufferRef=useRef('');
-  const timerRef=useRef(null);
+function useSpeech(onResult,onInterim,lang,listening){
   const onResultRef=useRef(onResult);
+  const onInterimRef=useRef(onInterim);
   onResultRef.current=onResult;
+  onInterimRef.current=onInterim;
   useEffect(()=>{
     if(!listening)return;
-    bufferRef.current='';
-    clearTimeout(timerRef.current);
     const r=getRec();
     if(!r)return;
     r.continuous=true;
     r.interimResults=true;
     r.lang=lang;
-    r.maxAlternatives=1;
-    const flush=()=>{
-      clearTimeout(timerRef.current);
-      if(bufferRef.current.trim()){
-        onResultRef.current(bufferRef.current.trim());
-        bufferRef.current='';
-      }
-    };
+    let currentFinalIndex=-1;
     r.onresult=(e)=>{
-      for(let i=e.resultIndex;i<e.results.length;i++){
-        if(e.results[i].isFinal)bufferRef.current+=e.results[i][0].transcript;
+      // Build full text from all final results so far
+      let finalText='';
+      for(let i=0;i<e.results.length;i++){
+        if(e.results[i].isFinal){finalText+=e.results[i][0].transcript;currentFinalIndex=i;}
       }
-      clearTimeout(timerRef.current);
-      timerRef.current=setTimeout(flush,800);
+      // Show interim for the very last (non-final) result
+      let interimText='';
+      const last=e.results[e.results.length-1];
+      if(last&&!last.isFinal)interimText=last[0].transcript;
+      // Report interim (live preview)
+      onInterimRef.current(finalText+interimText);
     };
-    r.onend=flush;
-    r.onerror=(e)=>{
-      if(e.error!=='no-speech'&&e.error!=='aborted')console.log('rec',e.error);
-      flush();
+    r.onend=()=>{
+      // User stopped speaking - commit everything
+      let full='';
+      for(let i=0;i<=currentFinalIndex;i++){
+        if(r.results[i]&&r.results[i].isFinal)full+=r.results[i][0].transcript;
+      }
+      const t=full.trim();
+      if(t)onResultRef.current(t);
+      onInterimRef.current('');
     };
+    r.onerror=(e)=>{if(e.error!=='no-speech'&&e.error!=='aborted')console.log('rec',e.error);};
     r.start();
     recognition=r;
-    return()=>{clearTimeout(timerRef.current);try{r.stop()}catch(e){}};
+    return()=>{try{r.stop()}catch(e){}onInterimRef.current('');};
   },[listening,lang]);
 }
 
@@ -250,17 +253,28 @@ function LiveSession({source,segs,setSegs,onSave}){
   const [current,setCurrent]=useState(source);
   const [modal,setModal]=useState(null);
   const [input,setInput]=useState('');
+  const [interim,setInterim]=useState('');
   const bottom=useRef(null);
+  const interimRef=useRef('');
 
   useEffect(()=>{setCurrent(source);},[source]);
 
-  useSpeech(async(t)=>{
-    setStatus('Listening...');
-    const trans=await translate(t,current,current==='ru'?'en':'ru');
-    const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
+  const commitSeg=async(text)=>{
+    if(!text)return;
+    const trans=await translate(text,current,current==='ru'?'en':'ru');
+    const seg={id:Date.now(),text,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
     setSegs(p=>[...p,seg]);
+    setInterim('');
+    interimRef.current='';
     setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:'smooth'}),100);
-  },current==='ru'?'ru-RU':'en-US',listening);
+  };
+
+  useSpeech(
+    (finalText)=>commitSeg(finalText),           // onResult - commit when speech ends
+    (liveText)=>{interimRef.current=liveText;setInterim(liveText);}, // onInterim - live preview
+    current==='ru'?'ru-RU':'en-US',
+    listening
+  );
 
   useEffect(()=>{const ok=!!getRec();setStatus(ok?(listening?'Listening...':'Paused'):'Mic unavailable');},[listening]);
 
@@ -282,8 +296,9 @@ function LiveSession({source,segs,setSegs,onSave}){
       )
     ),
     React.createElement('div',{className:'main'},
-      segs.length===0&&React.createElement('div',{className:'empty'},'Say something in '+(current==='ru'?'Russian':'English')+'...'),
+      segs.length===0&&!interim&&React.createElement('div',{className:'empty'},'Say something in '+(current==='ru'?'Russian':'English')+'...'),
       segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>del(s.id)})),
+      interim&&React.createElement('div',{style:{color:'#666',fontStyle:'italic',fontSize:15,padding:'8px 4px'}},interim),
       React.createElement('div',{ref:bottom})
     ),
     React.createElement('div',{className:'input-row'},
@@ -377,18 +392,4 @@ function App(){
 
   return React.createElement('div',{style:{display:'flex',flexDirection:'column',height:'100vh'}},
     React.createElement('div',{className:'nav'},
-      React.createElement('button',{className:'nav-btn '+(tab==='live'?'active':''),onClick:()=>{setTab('live');setViewer(null);}},'Live'),
-      React.createElement('button',{className:'nav-btn '+(tab==='saved'?'active':''),onClick:()=>{setTab('saved');setViewer(null);}},'Saved'),
-      React.createElement('button',{className:'nav-btn '+(tab==='glossary'?'active':''),onClick:()=>setTab('glossary')},'Glossary')
-    ),
-    viewer?React.createElement(SessionViewer,{item:viewer,onBack:()=>setViewer(null)}):
-    tab==='live'?React.createElement(LiveSession,{source,segs,setSegs,onSave:()=>setTab('saved')}):
-    tab==='saved'?React.createElement(SavedSessions,{onOpen:setViewer}):
-    React.createElement(GlossaryPage,null)
-  );
-}
-
-ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
-</script>
-</body>
-</html>
+      React.createElement('button',{className:'nav-btn '+(tab
