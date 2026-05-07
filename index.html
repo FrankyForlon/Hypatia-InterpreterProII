@@ -3,393 +3,697 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<title>Constance Interpreter Pro</title>
-<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#080808">
+<title>Hypatia InterpreterPro</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0f0f0f;color:#fff;height:100vh;overflow:hidden}
-#root{height:100vh;display:flex;flex-direction:column}
-.header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#1a1a1a;border-bottom:1px solid #333}
-.dot{width:10px;height:10px;border-radius:50%;background:#ef4444}
-.dot.on{background:#22c55e;animation:pulse 1.5s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.toggle-btn{background:#333;color:#fff;border:none;padding:6px 12px;border-radius:20px;font-size:13px;cursor:pointer}
-.nav{flex-shrink:0;display:flex;background:#1a1a1a;border-bottom:1px solid #333}
-.nav-btn{flex:1;padding:12px;background:none;border:none;color:#888;font-size:14px;cursor:pointer}
-.nav-btn.active{color:#fff;border-bottom:2px solid #22c55e}
-.main{flex:1;overflow-y:auto;padding:10px}
-.segment{background:#1e1e1e;border-radius:12px;padding:12px;margin-bottom:10px;position:relative}
-.seg-src{color:#ccc;font-size:15px;margin-bottom:6px;line-height:1.5}
-.seg-tgt{color:#22c55e;font-size:16px;margin-bottom:6px;line-height:1.5}
-.seg-meta{color:#666;font-size:11px;display:flex;gap:8px;align-items:center}
-.word{cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .2s}
-.word:hover{background:rgba(34,197,94,.25)}
-.delete-btn{position:absolute;top:8px;right:8px;background:#333;color:#ef4444;border:none;width:24px;height:24px;border-radius:50%;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center}
-.delete-btn:hover{background:#ef4444;color:#fff}
-.input-row{display:flex;gap:8px;padding:10px;background:#1a1a1a;border-top:1px solid #333}
-.input-row input{flex:1;background:#222;border:1px solid #444;color:#fff;padding:10px 14px;border-radius:24px;font-size:15px;outline:none}
-.input-row input::placeholder{color:#666}
-.input-row button{background:#22c55e;color:#fff;border:none;width:40px;height:40px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.empty{color:#666;text-align:center;padding:40px 20px;font-size:14px}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.8);display:flex;align-items:flex-end;justify-content:center;z-index:100}
-.modal-box{background:#1e1e1e;width:100%;max-width:500px;border-radius:20px 20px 0 0;padding:20px;max-height:70vh;overflow-y:auto;position:relative}
-.modal-close{position:absolute;top:16px;right:16px;background:#333;color:#fff;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px}
-.dict-word{font-size:22px;font-weight:700;margin-bottom:8px;color:#fff}
-.dict-pos{color:#888;font-size:13px;margin-bottom:8px}
-.dict-def{color:#ccc;font-size:15px;line-height:1.6;margin-bottom:8px}
-.dict-ru{color:#22c55e;font-size:15px;margin-bottom:12px}
-.glossary-list{padding:0 10px 10px}
-.gloss-item{background:#1e1e1e;border-radius:12px;padding:14px;margin-bottom:10px}
-.gloss-en{color:#fff;font-size:16px;font-weight:600;margin-bottom:4px}
-.gloss-ru{color:#22c55e;font-size:15px;margin-bottom:6px}
-.gloss-def{color:#999;font-size:14px;line-height:1.5}
-.saved-item{background:#1e1e1e;border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
-.saved-title{color:#fff;font-size:15px;margin-bottom:4px}
-.saved-date{color:#888;font-size:12px}
-.saved-actions{display:flex;gap:8px}
-.icon-btn{background:#333;color:#fff;border:none;padding:8px 12px;border-radius:8px;cursor:pointer;font-size:13px}
-.icon-btn:hover{background:#444}
-.start-overlay{position:fixed;inset:0;background:#0f0f0f;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:200}
-.start-btn{background:#22c55e;color:#fff;border:none;padding:18px 40px;border-radius:30px;font-size:18px;font-weight:600;cursor:pointer;margin-top:20px}
-.start-sub{color:#888;font-size:14px;margin-top:12px;text-align:center;padding:0 30px}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--surf:#0f0f0f;--surf2:#1a1a1a;
+  --border:rgba(255,255,255,0.07);
+  --amber:#f59e0b;--amber-bg:rgba(245,158,11,0.12);
+  --text:#e4e4e7;--dim:#52525b;--muted:#3f3f46;
+  --red:#ef4444;--green:#22c55e;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+
+/* ─── SETUP ─── */
+#setup{position:fixed;inset:0;background:var(--bg);z-index:999;
+  display:flex;align-items:center;justify-content:center;padding:2rem}
+#setup.gone{display:none}
+.sc{max-width:340px;width:100%;text-align:center}
+.logo-big{width:64px;height:64px;background:var(--amber);border-radius:18px;
+  margin:0 auto 1.5rem;display:flex;align-items:center;justify-content:center;
+  font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:34px;color:#000}
+.sc h1{font-size:1.6rem;font-weight:800;letter-spacing:-0.02em;margin-bottom:0.25rem}
+.sc .sub{font-size:0.65rem;color:var(--dim);text-transform:uppercase;
+  letter-spacing:0.18em;font-weight:700;margin-bottom:2rem}
+.lbl{text-align:left;font-size:0.6rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.12em;color:var(--dim);margin-bottom:0.4rem}
+.key-in{width:100%;background:var(--surf2);border:1px solid var(--border);
+  color:var(--text);padding:0.875rem 1rem;border-radius:12px;font-size:0.875rem;
+  font-family:'Courier New',monospace;outline:none;margin-bottom:0.75rem;
+  transition:border-color 0.2s}
+.key-in:focus{border-color:var(--amber)}
+.key-in::placeholder{color:var(--muted)}
+.go-btn{width:100%;background:#fff;color:#000;border:none;padding:1rem;
+  border-radius:14px;font-size:0.7rem;font-weight:900;letter-spacing:0.18em;
+  text-transform:uppercase;cursor:pointer;transition:background 0.15s}
+.go-btn:hover{background:var(--amber)}
+.hint{margin-top:1rem;font-size:0.7rem;color:var(--muted);line-height:1.7}
+.hint a{color:var(--amber);text-decoration:none}
+
+/* ─── APP SHELL ─── */
+#app{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ─── HEADER ─── */
+header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:0.625rem 1rem;background:var(--surf);border-bottom:1px solid var(--border)}
+.hl{display:flex;align-items:center;gap:0.625rem}
+.logo-sm{width:30px;height:30px;background:var(--amber);border-radius:8px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:Georgia,serif;font-style:italic;font-weight:700;font-size:17px;color:#000}
+.brand-name{font-size:0.6rem;font-weight:900;text-transform:uppercase;
+  letter-spacing:0.15em;color:#fff;line-height:1}
+.brand-ver{font-size:0.52rem;color:var(--dim);font-family:'Courier New',monospace;
+  letter-spacing:0.05em;margin-top:2px}
+.hr{display:flex;align-items:center;gap:0.5rem}
+.status-pill{display:flex;align-items:center;gap:0.35rem;
+  padding:0.22rem 0.6rem;background:rgba(0,0,0,0.5);
+  border:1px solid var(--border);border-radius:999px;
+  font-size:0.55rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.1em;color:var(--dim)}
+.sdot{width:6px;height:6px;border-radius:50%;background:var(--muted);transition:background 0.3s}
+.sdot.listening{background:var(--red);animation:blink 1.2s infinite}
+.sdot.processing{background:var(--amber);animation:bob 0.5s infinite alternate}
+.sdot.ready{background:var(--green)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.25}}
+@keyframes bob{from{transform:scale(1)}to{transform:scale(1.6)}}
+.hbtn{width:30px;height:30px;background:none;border:1px solid var(--border);
+  border-radius:8px;color:var(--dim);cursor:pointer;display:flex;
+  align-items:center;justify-content:center;font-size:14px;transition:all 0.15s}
+.hbtn:hover{border-color:rgba(255,255,255,0.2);color:#fff}
+
+/* ─── SPLIT HORIZON ─── */
+main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.zone{flex:1;overflow-y:auto;padding:0.875rem 1rem;min-height:0;scroll-behavior:smooth}
+.zone::-webkit-scrollbar{width:2px}
+.zone::-webkit-scrollbar-thumb{background:var(--border)}
+.zone-ru{background:#0a0a0a;border-bottom:1px solid var(--border)}
+.zone-en{background:var(--bg)}
+.zlabel{font-size:0.55rem;font-weight:900;text-transform:uppercase;
+  letter-spacing:0.2em;color:var(--muted);margin-bottom:0.75rem;
+  display:flex;align-items:center;gap:0.35rem}
+.zlabel-dot{width:5px;height:5px;border-radius:50%;background:var(--amber)}
+.seg{margin-bottom:1rem;animation:fadeUp 0.3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.seg-meta{font-size:0.5rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.1em;color:var(--muted);margin-bottom:0.25rem;
+  display:flex;align-items:center;gap:0.4rem}
+.seg-meta::after{content:'';flex:1;height:1px;background:var(--border)}
+.seg-text{line-height:1.75}
+.seg-text.ru{color:var(--amber);font-size:1.05rem;font-weight:500}
+.seg-text.en{color:#d4d4d8;font-size:0.9rem;font-weight:300}
+.word{cursor:pointer;border-radius:3px;display:inline;transition:background 0.15s}
+.word:hover{background:var(--amber-bg)}
+.interim-box{font-size:0.82rem;font-style:italic;color:var(--dim);
+  min-height:1.4rem;padding:0.375rem 0.5rem;border-left:2px solid var(--border);
+  line-height:1.5;transition:all 0.2s;margin-top:0.25rem}
+.interim-box:empty{border-left-color:transparent}
+.empty{color:var(--muted);font-size:0.75rem;text-align:center;
+  padding:2rem 1rem;line-height:1.9}
+.empty strong{display:block;font-size:0.6rem;text-transform:uppercase;
+  letter-spacing:0.12em;color:var(--dim);margin-bottom:0.5rem}
+
+/* ─── FOOTER ─── */
+footer{flex-shrink:0;padding:0.625rem 1rem;
+  padding-bottom:max(0.625rem,env(safe-area-inset-bottom));
+  background:var(--surf);border-top:1px solid var(--border)}
+.frow{display:flex;gap:0.5rem;align-items:center;max-width:640px;margin:0 auto}
+.txt-in{flex:1;background:var(--surf2);border:1px solid var(--border);
+  color:var(--text);padding:0.625rem 0.875rem;border-radius:12px;
+  font-size:0.85rem;outline:none;transition:border-color 0.2s}
+.txt-in:focus{border-color:var(--amber)}
+.txt-in::placeholder{color:var(--muted)}
+.lang-tog{display:flex;background:var(--surf2);border:1px solid var(--border);
+  border-radius:9px;padding:3px;gap:2px;flex-shrink:0}
+.lbtn{padding:0.3rem 0.55rem;border:none;border-radius:6px;font-size:0.6rem;
+  font-weight:900;cursor:pointer;background:none;color:var(--dim);
+  letter-spacing:0.06em;transition:all 0.15s}
+.lbtn.on{background:var(--amber);color:#000}
+.mic{width:46px;height:46px;border-radius:13px;border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;transition:all 0.15s;flex-shrink:0}
+.mic.off{background:#fff;color:#000}
+.mic.off:hover{background:var(--amber);transform:rotate(5deg)}
+.mic.on{background:var(--red);color:#fff;animation:blink 1.2s infinite}
+.acts{display:flex;justify-content:center;gap:0.5rem;margin-top:0.4rem}
+.act{background:none;border:1px solid var(--border);color:var(--dim);
+  font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
+  padding:0.3rem 0.65rem;border-radius:7px;cursor:pointer;transition:all 0.15s}
+.act:hover{border-color:rgba(255,255,255,0.2);color:#fff}
+.act.del:hover{border-color:var(--red);color:var(--red)}
+
+/* ─── DRAWER ─── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;
+  display:flex;align-items:flex-end;opacity:0;pointer-events:none;
+  transition:opacity 0.25s}
+.overlay.open{opacity:1;pointer-events:all}
+.drawer{background:#111;border:1px solid var(--border);border-bottom:none;
+  border-radius:24px 24px 0 0;padding:1.5rem 1.5rem 3rem;width:100%;
+  max-width:580px;margin:0 auto;max-height:72vh;overflow-y:auto;
+  transform:translateY(100%);transition:transform 0.3s cubic-bezier(0.34,1.56,0.64,1)}
+.overlay.open .drawer{transform:translateY(0)}
+.dh{display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem}
+.dtag{font-size:0.55rem;font-weight:900;text-transform:uppercase;
+  letter-spacing:0.18em;color:var(--amber)}
+.dcls{width:28px;height:28px;background:var(--surf2);border:none;
+  border-radius:50%;color:var(--dim);cursor:pointer;font-size:13px;
+  display:flex;align-items:center;justify-content:center}
+.dword{font-size:2.5rem;font-family:Georgia,serif;font-style:italic;
+  font-weight:400;line-height:1.1;margin-bottom:0.2rem}
+.dpos{font-size:0.6rem;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.1em;color:var(--dim);margin-bottom:0.5rem}
+.dtrans{color:var(--amber);font-size:0.9rem;font-weight:600;
+  margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.ddef{font-size:1rem;font-weight:300;color:#a1a1aa;line-height:1.75;
+  font-style:italic;border-left:2px solid rgba(245,158,11,0.3);
+  padding-left:1rem;margin-bottom:1.25rem}
+.dexlbl{font-size:0.55rem;font-weight:900;text-transform:uppercase;
+  letter-spacing:0.18em;color:var(--muted);margin-bottom:0.5rem}
+.dex{font-size:0.8rem;color:#71717a;background:rgba(255,255,255,0.03);
+  border:1px solid var(--border);border-radius:10px;
+  padding:0.75rem;margin-bottom:0.5rem;line-height:1.55}
+.dload{color:var(--dim);font-size:0.8rem;text-align:center;padding:2.5rem;
+  font-family:'Courier New',monospace;letter-spacing:0.1em}
+
+/* ─── TOAST ─── */
+.toast{position:fixed;top:1rem;left:50%;transform:translateX(-50%) translateY(-80px);
+  background:#1f1f1f;border:1px solid rgba(255,255,255,0.1);color:var(--text);
+  padding:0.5rem 1rem;border-radius:10px;font-size:0.75rem;font-weight:600;
+  z-index:400;transition:transform 0.3s;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5);max-width:90vw;white-space:normal;text-align:center}
+.toast.err{border-color:rgba(239,68,68,0.4);color:#fca5a5}
+.toast.show{transform:translateX(-50%) translateY(0)}
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 </style>
 </head>
 <body>
-<div id="root"></div>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="sc">
+    <div class="logo-big">H</div>
+    <h1>Hypatia</h1>
+    <div class="sub">InterpreterPro &middot; 1.0</div>
+    <div class="lbl">Gemini API Key</div>
+    <input class="key-in" id="ki" type="password" placeholder="AIza..." autocomplete="off" spellcheck="false">
+    <button class="go-btn" id="goBtn">Begin Session</button>
+    <div class="hint">
+      Free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a><br>
+      Stored only in this browser &mdash; never sent anywhere else.
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <header>
+    <div class="hl">
+      <div class="logo-sm">H</div>
+      <div>
+        <div class="brand-name">Hypatia</div>
+        <div class="brand-ver">InterpreterPro 1.0</div>
+      </div>
+    </div>
+    <div class="hr">
+      <div class="status-pill">
+        <div class="sdot" id="sdot"></div>
+        <span id="stxt">Ready</span>
+      </div>
+      <button class="hbtn" id="keyBtn" title="Change API key">⚙</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- Russian Zone (Top) -->
+    <div class="zone zone-ru" id="zru">
+      <div class="zlabel"><div class="zlabel-dot"></div>Русский</div>
+      <div id="ruMsgs">
+        <div class="empty">
+          <strong>Russian Feed</strong>
+          Select <b>RU</b> below and tap the mic &mdash; Russian speech appears here.<br>
+          Spoke English? Select <b>EN</b> &mdash; the Russian translation appears here.
+        </div>
+      </div>
+      <div class="interim-box" id="ruInterim"></div>
+      <div id="ruEnd"></div>
+    </div>
+
+    <!-- English Zone (Bottom) -->
+    <div class="zone zone-en" id="zen">
+      <div class="zlabel"><div class="zlabel-dot"></div>English</div>
+      <div id="enMsgs">
+        <div class="empty">
+          <strong>English Feed</strong>
+          Select <b>EN</b> below and tap the mic &mdash; English speech appears here.<br>
+          Spoke Russian? Select <b>RU</b> &mdash; the English translation appears here.
+        </div>
+      </div>
+      <div class="interim-box" id="enInterim"></div>
+      <div id="enEnd"></div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="frow">
+      <input class="txt-in" id="tin" placeholder="Type here (Enter to send)..." autocomplete="off">
+      <div class="lang-tog">
+        <button class="lbtn on" id="bEN" onclick="setLang('en')">EN</button>
+        <button class="lbtn" id="bRU" onclick="setLang('ru')">RU</button>
+      </div>
+      <button class="mic off" id="micBtn">🎙</button>
+    </div>
+    <div class="acts">
+      <button class="act" id="expBtn">⬇ Export</button>
+      <button class="act del" id="clrBtn">✕ Clear</button>
+      <button class="act" id="kBtn">🔑 Key</button>
+    </div>
+  </footer>
+</div>
+
+<!-- DICTIONARY DRAWER -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="drawer">
+    <div class="dh">
+      <div class="dtag">Clinical Glossary</div>
+      <button class="dcls" onclick="closeDrawer()">&#x2715;</button>
+    </div>
+    <div id="dContent"><div class="dload">Consulting database…</div></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
 <script>
-const {useState,useEffect,useRef} = React;
+// ================================================================
+// CONFIG
+// ================================================================
+const MODEL = 'gemini-2.0-flash';
+const geminiUrl = k =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 
-const GLOSSARY=[
-{en:"Angiography",ru:"Angiografiya",def:"Imaging of blood vessels using contrast dye and X-rays."},
-{en:"Biopsy",ru:"Biopsiya",def:"Extraction of tissue sample for diagnostic examination."},
-{en:"Catheter",ru:"Katyeter",def:"Thin tube inserted into body cavities for drainage or access."},
-{en:"Dialysis",ru:"Dializ",def:"Filtration procedure to remove waste from blood when kidneys fail."},
-{en:"Electrode",ru:"Elektrod",def:"Conductor used to make contact with non-metallic circuit parts."},
-{en:"Fluoroscopy",ru:"Fluoroskopiya",def:"Real-time moving X-ray imaging for guiding procedures."},
-{en:"Graft",ru:"Transplantat",def:"Tissue or device implanted to replace/repair body part."},
-{en:"Hemodynamics",ru:"Gemodinamika",def:"Study of blood flow and forces affecting circulation."},
-{en:"Impedance",ru:"Impedans",def:"Opposition to alternating current flow in a circuit."},
-{en:"Laparoscopy",ru:"Laparoskopiya",def:"Minimally invasive abdominal surgery using camera."},
-{en:"Microfluidics",ru:"Mikrofluidika",def:"Science of manipulating fluids in sub-millimeter channels."},
-{en:"Neurostimulator",ru:"Neyrostimulyator",def:"Implantable device delivering electrical impulses to nervous system."},
-{en:"Orthosis",ru:"Ortez",def:"External device modifying structural/functional body characteristics."},
-{en:"Pacemaker",ru:"Elektrokardiostimulyator",def:"Implantable device regulating heartbeat via electrical impulses."},
-{en:"Resonance",ru:"Rezonans",def:"Amplified oscillation at natural frequency of system."},
-{en:"Stent",ru:"Stent",def:"Mesh tube inserted to open narrow/passage vessel."},
-{en:"Telemetry",ru:"Telemetriya",def:"Remote transmission of measurements to receiving equipment."},
-{en:"Tomography",ru:"Tomografiya",def:"Imaging by sections using penetrating waves."},
-{en:"Ultrasonography",ru:"Ultrasonografiya",def:"Imaging using high-frequency sound waves."},
-{en:"Vascular",ru:"Sosudisty",def:"Relating to blood vessels and circulation."}
-];
+// ================================================================
+// STATE
+// ================================================================
+let key = '';
+let lang = 'en';       // active speaker language: 'en' | 'ru'
+let rec = false;
+let recObj = null;
+let segs = [];          // [{id, lang, original, translated, time}]
 
-const MW_MEDICAL_KEY="63cc7ca6-8850-4310-b9c0-69890f31bc7d";
-const MW_COLLEGIATE_KEY="4c2d0de6-f0d5-46eb-a444-7af263f7cec3";
+// ================================================================
+// INIT
+// ================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  key = localStorage.getItem('hpro_key') || '';
+  if (key) boot();
 
-let recognition=null;
+  document.getElementById('goBtn').onclick = doSetup;
+  document.getElementById('ki').addEventListener('keydown', e => e.key === 'Enter' && doSetup());
+  document.getElementById('micBtn').addEventListener('click', toggleMic);
+  document.getElementById('tin').addEventListener('keydown', e => e.key === 'Enter' && doText());
+  document.getElementById('expBtn').addEventListener('click', doExport);
+  document.getElementById('clrBtn').addEventListener('click', doClear);
+  document.getElementById('kBtn').addEventListener('click', doKey);
+  document.getElementById('keyBtn').addEventListener('click', doKey);
 
-function getRec(){const R=window.SpeechRecognition||window.webkitSpeechRecognition;if(!R)return null;return new R()}
+  const saved = localStorage.getItem('hpro_session');
+  if (saved) try { segs = JSON.parse(saved); renderAll(); } catch(e) {}
+});
 
-function useSpeech(onResult,onInterim,lang,listening){
-  const onResultRef=useRef(onResult);
-  const onInterimRef=useRef(onInterim);
-  onResultRef.current=onResult;
-  onInterimRef.current=onInterim;
-  useEffect(()=>{
-    if(!listening)return;
-    const r=getRec();
-    if(!r)return;
-    r.continuous=true;
-    r.interimResults=true;
-    r.lang=lang;
-    let currentFinalIndex=-1;
-    r.onresult=(e)=>{
-      // Build full text from all final results so far
-      let finalText='';
-      for(let i=0;i<e.results.length;i++){
-        if(e.results[i].isFinal){finalText+=e.results[i][0].transcript;currentFinalIndex=i;}
-      }
-      // Show interim for the very last (non-final) result
-      let interimText='';
-      const last=e.results[e.results.length-1];
-      if(last&&!last.isFinal)interimText=last[0].transcript;
-      // Report interim (live preview)
-      onInterimRef.current(finalText+interimText);
-    };
-    r.onend=()=>{
-      // User stopped speaking - commit everything
-      let full='';
-      for(let i=0;i<=currentFinalIndex;i++){
-        if(r.results[i]&&r.results[i].isFinal)full+=r.results[i][0].transcript;
-      }
-      const t=full.trim();
-      if(t)onResultRef.current(t);
-      onInterimRef.current('');
-    };
-    r.onerror=(e)=>{if(e.error!=='no-speech'&&e.error!=='aborted')console.log('rec',e.error);};
-    r.start();
-    recognition=r;
-    return()=>{try{r.stop()}catch(e){}onInterimRef.current('');};
-  },[listening,lang]);
+function doSetup() {
+  const v = document.getElementById('ki').value.trim();
+  if (!v) return toast('Enter your Gemini API key.', true);
+  if (!v.startsWith('AIza')) return toast('Key should start with AIza...', true);
+  key = v;
+  localStorage.setItem('hpro_key', key);
+  boot();
 }
 
-async function translateMyMemory(text,source,target){
-  try{const r=await fetch('https://api.mymemory.translated.net/get?q='+encodeURIComponent(text)+'&langpair='+source+'|'+target);const d=await r.json();if(d.responseStatus===200&&d.responseData&&d.responseData.translatedText)return d.responseData.translatedText;}catch(e){}return null;
+function boot() {
+  document.getElementById('setup').classList.add('gone');
+  document.getElementById('app').style.display = 'flex';
+  setStatus('ready');
 }
 
-async function translate(text,source,target){
-  if(!text||text.length<2)return text;
-  const mm=await translateMyMemory(text,source,target);
-  if(mm&&mm.toLowerCase()!==text.toLowerCase())return mm;
-  return '['+target.toUpperCase()+'] '+text;
+function doKey() {
+  if (rec) stopRec();
+  localStorage.removeItem('hpro_key');
+  key = '';
+  document.getElementById('setup').classList.remove('gone');
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('ki').value = '';
 }
 
-async function fetchDefinition(word){
-  try{const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word.toLowerCase()));const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].meanings)return d[0].meanings.map(m=>({pos:m.partOfSpeech,defs:m.definitions.slice(0,2).map(x=>x.definition)}));}catch(e){}return null;
+// ================================================================
+// LANGUAGE TOGGLE
+// ================================================================
+function setLang(l) {
+  lang = l;
+  document.getElementById('bEN').classList.toggle('on', l === 'en');
+  document.getElementById('bRU').classList.toggle('on', l === 'ru');
+  document.getElementById('tin').placeholder =
+    l === 'en' ? 'Type in English (Enter to send)...' : 'Введите текст (Enter)...';
+  clearInterim();
+  if (rec) { stopRec(); startRec(); }
 }
 
-async function fetchWikipedia(word){
-  try{const r=await fetch('https://en.wikipedia.org/api/rest_v1/page/summary/'+encodeURIComponent(word));const d=await r.json();if(d.extract)return d.extract;}catch(e){}return null;
-}
+// ================================================================
+// SPEECH RECOGNITION
+// ================================================================
+function toggleMic() { rec ? stopRec() : startRec(); }
 
-async function fetchMW(word,type,key){
-  if(!key)return null;
-  try{const r=await fetch('https://www.dictionaryapi.com/api/v3/references/'+type+'/json/'+encodeURIComponent(word)+'?key='+key);const d=await r.json();if(Array.isArray(d)&&d[0]&&d[0].shortdef&&d[0].shortdef.length)return{fl:d[0].fl||type,src:type,defs:d[0].shortdef.slice(0,3)};}catch(e){}return null;
-}
+function startRec() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    return toast('Speech recognition needs Chrome or Edge. Try typing instead.', true);
+  }
 
-function findGlossary(word){
-  const w=word.toLowerCase();
-  if(/[\u0400-\u04FF]/.test(w))return GLOSSARY.find(g=>{const gru=g.ru.toLowerCase();return gru===w||gru.includes(w)||w.includes(gru);});
-  const clean=w.replace(/[^a-z]/gi,'');
-  if(!clean)return null;
-  return GLOSSARY.find(g=>{const gen=g.en.toLowerCase();return gen===clean||gen.includes(clean)||clean.includes(gen);});
-}
+  recObj = new SR();
+  recObj.lang = lang === 'ru' ? 'ru-RU' : 'en-US';
+  recObj.continuous = true;
+  recObj.interimResults = true;
+  recObj.maxAlternatives = 1;
 
-function WordModal({word,onClose}){
-  const [enDefs,setEnDefs]=useState(null);
-  const [medDefs,setMedDefs]=useState(null);
-  const [wiki,setWiki]=useState(null);
-  const [toEn,setToEn]=useState(null);
-  const [toRu,setToRu]=useState(null);
-  const [loading,setLoading]=useState(true);
-  const gloss=findGlossary(word);
-  const isRu=/[\u0400-\u04FF]/.test(word);
-  const strip=s=>s?s.replace(/^\[[A-Z]{2}\]\s*/,''):s;
-
-  useEffect(()=>{
-    setEnDefs(null);setMedDefs(null);setWiki(null);setToEn(null);setToRu(null);setLoading(true);
-    (async()=>{
-      if(isRu){
-        const en=await translate(word,'ru','en');
-        if(en&&en!==word)setToEn(en);
-        const clean=strip(en)||word;
-        const mw1=await fetchMW(clean,'medical',MW_MEDICAL_KEY);
-        if(mw1)setMedDefs(mw1);else{const mw2=await fetchMW(clean,'collegiate',MW_COLLEGIATE_KEY);if(mw2)setMedDefs(mw2);}
-        const defs=await fetchDefinition(clean);
-        if(defs)setEnDefs(defs);
-        if(!medDefs&&!enDefs){const wk=await fetchWikipedia(clean);if(wk)setWiki(wk);}
-      }else{
-        const mw1=await fetchMW(word,'medical',MW_MEDICAL_KEY);
-        if(mw1)setMedDefs(mw1);else{const mw2=await fetchMW(word,'collegiate',MW_COLLEGIATE_KEY);if(mw2)setMedDefs(mw2);}
-        const defs=await fetchDefinition(word);
-        if(defs)setEnDefs(defs);
-        if(!medDefs&&!enDefs){const wk=await fetchWikipedia(word);if(wk)setWiki(wk);}
-        const ru=await translate(word,'en','ru');
-        if(ru&&ru!==word)setToRu(ru);
-      }
-      setLoading(false);
-    })();
-  },[word]);
-
-  return React.createElement('div',{className:'modal',onClick:onClose},
-    React.createElement('div',{className:'modal-box',onClick:e=>e.stopPropagation()},
-      React.createElement('button',{className:'modal-close',onClick:onClose},'X'),
-      React.createElement('div',{className:'dict-word'},word),
-      loading&&React.createElement('div',{className:'dict-def'},'Looking up...'),
-      gloss&&React.createElement('div',{style:{background:'#1a3a1a',padding:10,borderRadius:8,marginBottom:12,marginTop:4}},
-        React.createElement('div',{style:{color:'#22c55e',fontSize:12,fontWeight:600,marginBottom:4}},'GLOSSARY MATCH'),
-        React.createElement('div',{style:{color:'#fff',fontSize:15,fontWeight:600}},isRu?gloss.en:gloss.ru),
-        React.createElement('div',{className:'dict-def',style:{marginBottom:0,marginTop:4}},gloss.def)
-      ),
-      isRu?(toEn&&React.createElement('div',{className:'dict-ru'},React.createElement('span',{style:{color:'#888'}},'English: '),strip(toEn))):null,
-      !isRu&&(toRu&&React.createElement('div',{className:'dict-ru'},React.createElement('span',{style:{color:'#888'}},'Russian: '),strip(toRu))),
-      !isRu&&!toRu&&!loading&&React.createElement('div',{className:'dict-def',style:{color:'#666',fontStyle:'italic'}},'No Russian translation.'),
-      medDefs&&React.createElement('div',{style:{marginBottom:14}},
-        React.createElement('div',{className:'dict-pos'},'Merriam-Webster '+(medDefs.src==='medical'?'Medical':'Collegiate')+' - '+medDefs.fl),
-        medDefs.defs.map((def,j)=>React.createElement('div',{key:j,className:'dict-def'},'\u2022 '+def))
-      ),
-      enDefs&&enDefs.map((m,i)=>React.createElement('div',{key:i,style:{marginBottom:14}},
-        React.createElement('div',{className:'dict-pos'},m.pos),
-        m.defs.map((def,j)=>React.createElement('div',{key:j,className:'dict-def'},'\u2022 '+def))
-      )),
-      wiki&&React.createElement('div',{style:{marginBottom:14}},
-        React.createElement('div',{className:'dict-pos'},'Wikipedia'),
-        React.createElement('div',{className:'dict-def'},wiki)
-      ),
-      !loading&&!gloss&&!medDefs&&!enDefs&&!wiki&&!toEn&&!toRu&&
-        React.createElement('div',{className:'dict-def'},'No results found.')
-    )
-  );
-}
-
-function Seg({s,onTap,onDel}){
-  const words=s.text.split(/(\s+)/).map((w,i)=>React.createElement('span',{key:i,className:w.trim()?'word':'',onClick:()=>w.trim()&&onTap(w.replace(/[^a-zA-Z\u0400-\u04FF]/g,''))},w));
-  const tw=s.trans.split(/(\s+)/).map((w,i)=>React.createElement('span',{key:'t'+i,className:w.trim()?'word':'',onClick:()=>w.trim()&&onTap(w.replace(/[^a-zA-Z\u0400-\u04FF]/g,''))},w));
-  return React.createElement('div',{className:'segment'},
-    React.createElement('button',{className:'delete-btn',onClick:onDel},'\u00d7'),
-    React.createElement('div',{className:'seg-src'},words),
-    React.createElement('div',{className:'seg-tgt'},tw),
-    React.createElement('div',{className:'seg-meta'},
-      React.createElement('span',null,s.lang==='ru'?'Russian':'English'),
-      React.createElement('span',null,s.time)
-    )
-  );
-}
-
-function LiveSession({source,segs,setSegs,onSave}){
-  const [listening,setListen]=useState(true);
-  const [status,setStatus]=useState('Starting...');
-  const [current,setCurrent]=useState(source);
-  const [modal,setModal]=useState(null);
-  const [input,setInput]=useState('');
-  const [interim,setInterim]=useState('');
-  const bottom=useRef(null);
-  const interimRef=useRef('');
-
-  useEffect(()=>{setCurrent(source);},[source]);
-
-  const commitSeg=async(text)=>{
-    if(!text)return;
-    const trans=await translate(text,current,current==='ru'?'en':'ru');
-    const seg={id:Date.now(),text,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};
-    setSegs(p=>[...p,seg]);
-    setInterim('');
-    interimRef.current='';
-    setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:'smooth'}),100);
+  recObj.onstart = () => {
+    rec = true;
+    setStatus('listening');
+    const m = document.getElementById('micBtn');
+    m.className = 'mic on';
+    m.textContent = '⏹';
   };
 
-  useSpeech(
-    (finalText)=>commitSeg(finalText),           // onResult - commit when speech ends
-    (liveText)=>{interimRef.current=liveText;setInterim(liveText);}, // onInterim - live preview
-    current==='ru'?'ru-RU':'en-US',
-    listening
-  );
-
-  useEffect(()=>{const ok=!!getRec();setStatus(ok?(listening?'Listening...':'Paused'):'Mic unavailable');},[listening]);
-
-  const send=()=>{if(!input.trim())return;const t=input.trim();translate(t,current,current==='ru'?'en':'ru').then(trans=>{const seg={id:Date.now(),text:t,trans,lang:current,time:new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})};setSegs(p=>[...p,seg]);setInput('');setTimeout(()=>bottom.current&&bottom.current.scrollIntoView({behavior:'smooth'}),100);});};
-
-  const del=(id)=>setSegs(p=>p.filter(s=>s.id!==id));
-
-  const save=()=>{if(!segs.length)return;const title='Session '+new Date().toLocaleString();localStorage.setItem('hypatia_'+Date.now(),JSON.stringify({title,date:Date.now(),data:JSON.stringify(segs)}));if(onSave)onSave();alert('Saved!');};
-
-  return React.createElement('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
-    React.createElement('div',{className:'header'},
-      React.createElement('div',{style:{display:'flex',alignItems:'center',gap:8}},
-        React.createElement('div',{className:'dot '+(listening?'on':'')})        ,
-        React.createElement('span',{style:{fontSize:13,color:'#aaa'}},status)
-      ),
-      React.createElement('div',{style:{display:'flex',gap:8}},
-        React.createElement('button',{className:'toggle-btn',onClick:()=>setListen(l=>!l)},listening?'Pause':'Resume'),
-        React.createElement('button',{className:'toggle-btn',onClick:()=>setCurrent(c=>c==='ru'?'en':'ru')},current.toUpperCase()+' <-> '+(current==='ru'?'EN':'RU'))
-      )
-    ),
-    React.createElement('div',{className:'main'},
-      segs.length===0&&!interim&&React.createElement('div',{className:'empty'},'Say something in '+(current==='ru'?'Russian':'English')+'...'),
-      segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>del(s.id)})),
-      interim&&React.createElement('div',{style:{color:'#666',fontStyle:'italic',fontSize:15,padding:'8px 4px'}},interim),
-      React.createElement('div',{ref:bottom})
-    ),
-    React.createElement('div',{className:'input-row'},
-      React.createElement('input',{value:input,onChange:e=>setInput(e.target.value),onKeyDown:e=>e.key==='Enter'&&send(),placeholder:'Type here...'}),
-      React.createElement('button',{onClick:send},'>')
-    ),
-    React.createElement('div',{style:{display:'flex',justifyContent:'center',gap:12,padding:'8px 0',background:'#1a1a1a',borderTop:'1px solid #333'}},
-      React.createElement('button',{className:'icon-btn',onClick:save},'Save'),
-      React.createElement('button',{className:'icon-btn',onClick:()=>{if(confirm('Clear all?'))setSegs([]);}},'Clear')
-    ),
-    modal&&React.createElement(WordModal,{word:modal,onClose:()=>setModal(null)})
-  );
-}
-
-function SavedSessions({onOpen}){
-  const [items,setItems]=useState([]);
-  useEffect(()=>{
-    const keys=Object.keys(localStorage).filter(k=>k.startsWith('constance_')).sort().reverse();
-    setItems(keys.map(k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}).filter(Boolean));
-  },[]);
-  const del=(key)=>{localStorage.removeItem(key);setItems(p=>p.filter((_,i)=>{const k=Object.keys(localStorage).filter(x=>x.startsWith('constance_')).sort().reverse()[i];return k!==key;}));};
-  const exp=(item,key)=>{
-    const segs=JSON.parse(item.data||'[]');
-    const lines=segs.map(s=>'['+s.lang+'] '+s.time+'\nSOURCE: '+s.text+'\nTRANS: '+s.trans).join('\n\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines],{type:'text/plain'}));a.download='session_'+key.replace('constance_','')+'.txt';a.click();
+  recObj.onresult = evt => {
+    let interim = '', final = '';
+    for (let i = evt.resultIndex; i < evt.results.length; i++) {
+      const t = evt.results[i][0].transcript;
+      if (evt.results[i].isFinal) final += t;
+      else interim += t;
+    }
+    showInterim(interim || final);
+    if (final.trim()) {
+      clearInterim();
+      translate(final.trim());
+    }
   };
-  return React.createElement('div',{style:{padding:10,overflowY:'auto',height:'100%'}},
-    items.length===0&&React.createElement('div',{className:'empty'},'No saved sessions yet.'),
-    items.map((item,idx)=>{
-      const key=Object.keys(localStorage).filter(k=>k.startsWith('constance_')).sort().reverse()[idx];
-      return React.createElement('div',{className:'saved-item',key:key||idx},
-        React.createElement('div',{onClick:()=>onOpen(item)},
-          React.createElement('div',{className:'saved-title'},item.title||'Session'),
-          React.createElement('div',{className:'saved-date'},new Date(item.date).toLocaleString())
-        ),
-        React.createElement('div',{className:'saved-actions'},
-          React.createElement('button',{className:'icon-btn',onClick:()=>exp(item,key)},'Export'),
-          React.createElement('button',{className:'icon-btn',onClick:()=>del(key)},'Del')
-        )
-      );
-    })
-  );
+
+  recObj.onend = () => {
+    clearInterim();
+    // Auto-restart so recording stays continuous until user stops
+    if (rec) {
+      setTimeout(() => {
+        if (rec && recObj) try { recObj.start(); } catch(e) {}
+      }, 100);
+    }
+  };
+
+  recObj.onerror = e => {
+    if (e.error === 'not-allowed') {
+      toast('Microphone blocked. Allow mic access in browser settings, then reload.', true);
+      stopRec();
+    } else if (e.error === 'network') {
+      toast('Speech recognition network error. Check connection.', true);
+    }
+    // 'no-speech' and 'aborted' are normal — ignore
+  };
+
+  try {
+    recObj.start();
+  } catch(e) {
+    toast('Could not start mic. Try typing instead.', true);
+  }
 }
 
-function SessionViewer({item,onBack}){
-  const segs=JSON.parse(item.data||'[]');
-  const [modal,setModal]=useState(null);
-  return React.createElement('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
-    React.createElement('div',{className:'header'},
-      React.createElement('button',{className:'toggle-btn',onClick:onBack},'<- Back'),
-      React.createElement('span',{style:{fontSize:14}},item.title)
-    ),
-    React.createElement('div',{style:{flex:1,overflowY:'auto',padding:10}},
-      segs.map(s=>React.createElement(Seg,{key:s.id,s,onTap:setModal,onDel:()=>{}}))
-    ),
-    modal&&React.createElement(WordModal,{word:modal,onClose:()=>setModal(null)})
-  );
+function stopRec() {
+  rec = false;
+  if (recObj) { try { recObj.abort(); } catch(e) {} recObj = null; }
+  setStatus('ready');
+  clearInterim();
+  const m = document.getElementById('micBtn');
+  m.className = 'mic off';
+  m.textContent = '🎙';
 }
 
-function GlossaryPage(){
-  const [q,setQ]=useState('');
-  const f=q?GLOSSARY.filter(g=>g.en.toLowerCase().includes(q.toLowerCase())||g.ru.toLowerCase().includes(q.toLowerCase())):GLOSSARY;
-  return React.createElement('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
-    React.createElement('div',{className:'input-row'},
-      React.createElement('input',{value:q,onChange:e=>setQ(e.target.value),placeholder:'Search glossary...'})
-    ),
-    React.createElement('div',{className:'glossary-list',style:{overflowY:'auto',flex:1}},
-      f.map((g,i)=>React.createElement('div',{className:'gloss-item',key:i},
-        React.createElement('div',{className:'gloss-en'},g.en),
-        React.createElement('div',{className:'gloss-ru'},g.ru),
-        React.createElement('div',{className:'gloss-def'},g.def)
-      ))
-    )
-  );
+function showInterim(text) {
+  const ruId = lang === 'ru' ? 'ruInterim' : 'enInterim';
+  const enId = lang === 'ru' ? 'enInterim' : 'ruInterim';
+  document.getElementById(ruId).textContent = text;
+  document.getElementById(enId).textContent = '';
 }
 
-function App(){
-  const [tab,setTab]=useState('live');
-  const [started,setStarted]=useState(false);
-  const [viewer,setViewer]=useState(null);
-  const [source,setSource]=useState('ru');
-  const [segs,setSegs]=useState([]);
+function clearInterim() {
+  document.getElementById('ruInterim').textContent = '';
+  document.getElementById('enInterim').textContent = '';
+}
 
-  if(!started)return React.createElement('div',{className:'start-overlay'},
-    React.createElement('div',{style:{fontSize:32,fontWeight:700,marginBottom:8}},'Constance'),
-    React.createElement('div',{style:{fontSize:16,color:'#22c55e',marginBottom:4}},'Interpreter Pro'),
-    React.createElement('div',{className:'start-sub'},'Real-time Russian-English transcription, translation & medical glossary.'),
-    React.createElement('div',{className:'start-sub'},'Tap words for definitions. Save sessions for client delivery.'),
-    React.createElement('button',{className:'start-btn',onClick:()=>setStarted(true)},'Start Session')
-  );
+// ================================================================
+// TRANSLATE VIA GEMINI
+// ================================================================
+async function translate(text, srcOverride) {
+  setStatus('processing');
+  const src = srcOverride || lang;
+  const tgt = src === 'en' ? 'ru' : 'en';
 
-  return React.createElement('div',{style:{display:'flex',flexDirection:'column',height:'100vh'}},
-    React.createElement('div',{className:'nav'},
-      React.createElement('button',{className:'nav-btn '+(tab
+  const srcName = src === 'en' ? 'English' : 'Russian';
+  const tgtName = tgt === 'en' ? 'English' : 'Russian';
+
+  const prompt = `You are a simultaneous interpreter at a biomedical engineering conference (University of Utah, 2026). Participants include Russian-speaking medical engineers and doctors from CIS countries, and English-speaking American researchers. Domain: cardiology, bioelectronics, dialysis, ECMO, nanotech, biosensors, medical devices.
+
+Translate the following ${srcName} text to ${tgtName}.
+
+STRICT RULES:
+1. Preserve exact logical polarity. If the input contains a negative ("not stable", "нестабильный"), the output must also be negative. Never flip meaning.
+2. Use professional medical and engineering terminology.
+3. Output natural spoken language — this is live dialogue, not a written document.
+4. No explanations, brackets, translator notes, or caveats.
+
+Text to translate: "${text.replace(/"/g, '\\"').replace(/
+/g, ' ')}"
+
+Return ONLY valid JSON with no markdown: {"translated": "..."}`;
+
+  try {
+    const res = await fetch(geminiUrl(key), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: prompt}]}],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.1,
+          maxOutputTokens: 512
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      const msg = (err.error && err.error.message) || ('HTTP ' + res.status);
+      if (res.status === 400) return toast('API error: ' + msg.slice(0, 80), true);
+      if (res.status === 401 || res.status === 403) return toast('Invalid API key. Tap 🔑 to re-enter.', true);
+      if (res.status === 429) return toast('Rate limit hit. Please wait a moment.', true);
+      throw new Error(msg);
+    }
+
+    const data = await res.json();
+    const raw = (data.candidates &&
+      data.candidates[0] &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts &&
+      data.candidates[0].content.parts[0] &&
+      data.candidates[0].content.parts[0].text) || '{}';
+
+    let translated = '';
+    try {
+      translated = (JSON.parse(raw).translated || '').trim();
+    } catch(e) {
+      // Gemini sometimes wraps JSON in markdown fences
+      const m = raw.match(/"translated"\s*:\s*"([^"]+)"/);
+      translated = m ? m[1] : raw.replace(/[{}"{}']/g,'').trim();
+    }
+
+    const seg = {id: Date.now(), lang: src, original: text, translated, time: nowTime()};
+    segs.push(seg);
+    saveSession();
+    appendSeg(seg);
+    scrollBoth();
+
+  } catch(e) {
+    console.error(e);
+    toast('Translation failed: ' + String(e.message).slice(0, 70), true);
+  } finally {
+    setStatus(rec ? 'listening' : 'ready');
+  }
+}
+
+async function doText() {
+  const el = document.getElementById('tin');
+  const v = el.value.trim();
+  if (!v) return;
+  el.value = '';
+  await translate(v);
+}
+
+// ================================================================
+// RENDER
+// ================================================================
+function renderAll() {
+  document.getElementById('ruMsgs').innerHTML = '';
+  document.getElementById('enMsgs').innerHTML = '';
+  if (!segs.length) { showEmpty(); return; }
+  segs.forEach(appendSeg);
+  setTimeout(scrollBoth, 100);
+}
+
+function showEmpty() {
+  document.getElementById('ruMsgs').innerHTML =
+    '<div class="empty"><strong>Russian Feed</strong>Select <b>RU</b> below and tap the mic.</div>';
+  document.getElementById('enMsgs').innerHTML =
+    '<div class="empty"><strong>English Feed</strong>Select <b>EN</b> below and tap the mic.</div>';
+}
+
+function appendSeg(seg) {
+  const ruEl = document.getElementById('ruMsgs');
+  const enEl = document.getElementById('enMsgs');
+  if (ruEl.querySelector('.empty')) { ruEl.innerHTML = ''; enEl.innerHTML = ''; }
+
+  const ruText = seg.lang === 'ru' ? seg.original : seg.translated;
+  const enText = seg.lang === 'en' ? seg.original : seg.translated;
+  const label = (seg.lang === 'en' ? 'EN' : 'RU') + ' · ' + seg.time;
+
+  function mkEl(text, cls) {
+    const d = document.createElement('div');
+    d.className = 'seg';
+    d.dataset.id = seg.id;
+    d.innerHTML = '<div class="seg-meta">' + label + '</div>' +
+      '<div class="seg-text ' + cls + '">' + spanWords(text) + '</div>';
+    return d;
+  }
+
+  ruEl.appendChild(mkEl(ruText, 'ru'));
+  enEl.appendChild(mkEl(enText, 'en'));
+}
+
+function spanWords(text) {
+  if (!text) return '<em style="color:#3f3f46">—</em>';
+  return text.split(/(\s+)/).map(tok => {
+    if (!tok.trim()) return tok;
+    const w = tok.replace(/[^\wЀ-ӿ-]/g, '');
+    if (!w || w.length < 2) return tok;
+    const safe = w.replace(/'/g, "\\'");
+    return '<span class="word" onclick="lookup(\'' + safe + '\')">' + tok + '</span>';
+  }).join('');
+}
+
+function scrollBoth() {
+  document.getElementById('ruEnd').scrollIntoView({behavior: 'smooth', block: 'end'});
+  document.getElementById('enEnd').scrollIntoView({behavior: 'smooth', block: 'end'});
+}
+
+// ================================================================
+// DICTIONARY LOOKUP
+// ================================================================
+async function lookup(word) {
+  document.getElementById('dContent').innerHTML = '<div class="dload">Consulting medical database…</div>';
+  document.getElementById('overlay').classList.add('open');
+
+  const isRU = /[Ѐ-ӿ]/.test(word);
+  const prompt = `Medical dictionary entry for the term: "${word}"
+Detected language: ${isRU ? 'Russian' : 'English'}
+Context: Biomedical engineering conference. Domain: cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors, medical devices.
+
+Return ONLY valid JSON (no markdown):
+{"word":"${word}","translation":"[${isRU ? 'English' : 'Russian'} translation]","partOfSpeech":"[noun/verb/adj]","definition":"[precise 1-2 sentence clinical or technical definition]","examples":["[usage in medical context]","[second example]"]}` ;
+
+  try {
+    const res = await fetch(geminiUrl(key), {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: prompt}]}],
+        generationConfig: {responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 400}
+      })
+    });
+    const data = await res.json();
+    const raw = (data.candidates &&
+      data.candidates[0] &&
+      data.candidates[0].content &&
+      data.candidates[0].content.parts &&
+      data.candidates[0].content.parts[0] &&
+      data.candidates[0].content.parts[0].text) || '{}';
+    const e = JSON.parse(raw);
+    document.getElementById('dContent').innerHTML =
+      '<div class="dword">' + (e.word || word) + '</div>' +
+      (e.partOfSpeech ? '<div class="dpos">' + e.partOfSpeech + '</div>' : '') +
+      '<div class="dtrans">' + (e.translation || '—') + '</div>' +
+      '<div class="ddef">' + (e.definition || 'Definition unavailable.') + '</div>' +
+      (e.examples && e.examples.length
+        ? '<div class="dexlbl">In Context</div>' +
+          e.examples.map(x => '<div class="dex">' + x + '</div>').join('')
+        : '');
+  } catch(e) {
+    document.getElementById('dContent').innerHTML =
+      '<div class="dload">Lookup failed. Check your connection.</div>';
+  }
+}
+
+function overlayClick(e) {
+  if (e.target === document.getElementById('overlay')) closeDrawer();
+}
+function closeDrawer() {
+  document.getElementById('overlay').classList.remove('open');
+}
+
+// ================================================================
+// PERSIST / EXPORT / CLEAR
+// ================================================================
+function saveSession() {
+  localStorage.setItem('hpro_session', JSON.stringify(segs));
+}
+
+function doExport() {
+  if (!segs.length) return toast('No transcript to export yet.');
+  const lines = segs.map(s => {
+    const ru = s.lang === 'ru' ? s.original : s.translated;
+    const en = s.lang === 'en' ? s.original : s.translated;
+    return '[' + s.time + '] ' + s.lang.toUpperCase() + ' speaker\nRU: ' + ru + '\nEN: ' + en;
+  });
+  const sep = '─'.repeat(50);
+  const body = 'HYPATIA INTERPRETERPRO — Session Transcript\n' +
+    new Date().toLocaleString() + '\n' + sep + '\n\n' + lines.join('\n\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([body], {type: 'text/plain;charset=utf-8'}));
+  a.download = 'hypatia-session-' + Date.now() + '.txt';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('Transcript exported.');
+}
+
+function doClear() {
+  if (!segs.length || confirm('Clear the entire transcript?')) {
+    segs = [];
+    localStorage.removeItem('hpro_session');
+    showEmpty();
+    clearInterim();
+  }
+}
+
+// ================================================================
+// STATUS & TOAST
+// ================================================================
+function setStatus(s) {
+  document.getElementById('sdot').className = 'sdot ' + s;
+  document.getElementById('stxt').textContent =
+    s === 'listening' ? 'Listening' : s === 'processing' ? 'Translating' : 'Ready';
+}
+
+let toastTimer = null;
+function toast(msg, err) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast' + (err ? ' err' : '') + ' show';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 4500);
+}
+
+function nowTime() {
+  return new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+</script>
+</body>
+</html>
