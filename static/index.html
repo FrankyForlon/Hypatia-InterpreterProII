@@ -8,8 +8,8 @@
 <link rel="manifest" href="/manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Constance">
-<title>Constance Interpreter Pro</title>
+<meta name="apple-mobile-web-app-title" content="Hypatia">
+<title>Hypatia Interpreter Pro</title>
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <style>
@@ -271,7 +271,7 @@ function LiveSession({source,segs,setSegs,onSave}){
 
   const del=(id)=>setSegs(p=>p.filter(s=>s.id!==id));
 
-  const save=()=>{if(!segs.length)return;const title='Session '+new Date().toLocaleString();localStorage.setItem('constance_'+Date.now(),JSON.stringify({title,date:Date.now(),data:JSON.stringify(segs)}));if(onSave)onSave();alert('Saved!');};
+  const save=()=>{if(!segs.length)return;const title='Session '+new Date().toLocaleString();localStorage.setItem('hypatia_'+Date.now(),JSON.stringify({title,date:Date.now(),data:JSON.stringify(segs)}));if(onSave)onSave();alert('Saved!');};
 
   return React.createElement('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
     React.createElement('div',{className:'header'},
@@ -304,19 +304,19 @@ function LiveSession({source,segs,setSegs,onSave}){
 function SavedSessions({onOpen}){
   const [items,setItems]=useState([]);
   useEffect(()=>{
-    const keys=Object.keys(localStorage).filter(k=>k.startsWith('constance_')).sort().reverse();
+    const keys=Object.keys(localStorage).filter(k=>k.startsWith('hypatia_')).sort().reverse();
     setItems(keys.map(k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}}).filter(Boolean));
   },[]);
-  const del=(key)=>{localStorage.removeItem(key);setItems(p=>p.filter((_,i)=>{const k=Object.keys(localStorage).filter(x=>x.startsWith('constance_')).sort().reverse()[i];return k!==key;}));};
+  const del=(key)=>{localStorage.removeItem(key);setItems(p=>p.filter((_,i)=>{const k=Object.keys(localStorage).filter(x=>x.startsWith('hypatia_')).sort().reverse()[i];return k!==key;}));};
   const exp=(item,key)=>{
     const segs=JSON.parse(item.data||'[]');
     const lines=segs.map(s=>'['+s.lang+'] '+s.time+'\nSOURCE: '+s.text+'\nTRANS: '+s.trans).join('\n\n');
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines],{type:'text/plain'}));a.download='session_'+key.replace('constance_','')+'.txt';a.click();
+    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([lines],{type:'text/plain'}));a.download='session_'+key.replace('hypatia_','')+'.txt';a.click();
   };
   return React.createElement('div',{style:{padding:10,overflowY:'auto',height:'100%'}},
     items.length===0&&React.createElement('div',{className:'empty'},'No saved sessions yet.'),
     items.map((item,idx)=>{
-      const key=Object.keys(localStorage).filter(k=>k.startsWith('constance_')).sort().reverse()[idx];
+      const key=Object.keys(localStorage).filter(k=>k.startsWith('hypatia_')).sort().reverse()[idx];
       return React.createElement('div',{className:'saved-item',key:key||idx},
         React.createElement('div',{onClick:()=>onOpen(item)},
           React.createElement('div',{className:'saved-title'},item.title||'Session'),
@@ -371,7 +371,7 @@ function App(){
   const [segs,setSegs]=useState([]);
 
   if(!started)return React.createElement('div',{className:'start-overlay'},
-    React.createElement('div',{style:{fontSize:32,fontWeight:700,marginBottom:8}},'Constance'),
+    React.createElement('div',{style:{fontSize:32,fontWeight:700,marginBottom:8}},'Hypatia'),
     React.createElement('div',{style:{fontSize:16,color:'#22c55e',marginBottom:4}},'Interpreter Pro'),
     React.createElement('div',{className:'start-sub'},'Real-time Russian-English transcription, translation & medical glossary.'),
     React.createElement('div',{className:'start-sub'},'Tap words for definitions. Save sessions for client delivery.'),
@@ -385,4 +385,22 @@ function App(){
       React.createElement('button',{className:'nav-btn '+(tab==='glossary'?'active':''),onClick:()=>setTab('glossary')},'Glossary')
     ),
     viewer?React.createElement(SessionViewer,{item:viewer,onBack:()=>setViewer(null)}):
-    tab==='live'?React.createElement(LiveSession,{s
+    tab==='live'?React.createElement(LiveSession,{source,segs,setSegs,onSave:()=>setTab('saved')}):
+    tab==='saved'?React.createElement(SavedSessions,{onOpen:setViewer}):
+    React.createElement(GlossaryPage,null)
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+
+// Register service worker for PWA
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(function(err){
+    console.log('SW registration failed:', err);
+  });
+}
+</script>
+</body>
+</html>
+</html>
+</html>
