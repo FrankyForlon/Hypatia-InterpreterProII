@@ -259,7 +259,7 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
 <div class="toast" id="toast"></div>
 
 <script>
-// gemini-2.5-flash: current model as of May 2026
+// Model current as of May 2026
 const MODEL = 'gemini-2.5-flash';
 const geminiUrl = k =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
@@ -269,9 +269,11 @@ let lang = 'en';
 let rec = false;
 let recObj = null;
 let segs = [];
-let finalBuffer = '';
+
+// STT state — keyed by result index so Chrome's re-finalization doesn't duplicate
+let finalResults = {};   // { resultIndex: transcript }
 let silenceTimer = null;
-const SILENCE_MS = 800;
+const SILENCE_MS = 900;
 
 document.addEventListener('DOMContentLoaded', () => {
   key = localStorage.getItem('hpro_key') || '';
@@ -324,11 +326,24 @@ function setLang(l) {
 
 function toggleMic() { rec ? stopRec() : startRec(); }
 
-function flushBuffer() {
+function getFinalText() {
+  // Sorted by index to preserve word order
+  return Object.keys(finalResults)
+    .map(Number).sort((a,b) => a-b)
+    .map(i => finalResults[i])
+    .join(' ')
+    .trim();
+}
+
+function resetSTT() {
+  finalResults = {};
   clearTimeout(silenceTimer);
   silenceTimer = null;
-  const text = finalBuffer.trim();
-  finalBuffer = '';
+}
+
+function flushBuffer() {
+  const text = getFinalText();
+  resetSTT();
   clearInterim();
   if (text) translate(text);
 }
@@ -336,8 +351,9 @@ function flushBuffer() {
 function startRec() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return toast('Speech recognition needs Chrome or Edge. Try typing instead.', true);
-  finalBuffer = '';
-  clearTimeout(silenceTimer);
+
+  resetSTT();
+
   recObj = new SR();
   recObj.lang = lang === 'ru' ? 'ru-RU' : 'en-US';
   recObj.continuous = true;
@@ -355,29 +371,33 @@ function startRec() {
   recObj.onresult = evt => {
     let interim = '';
     for (let i = evt.resultIndex; i < evt.results.length; i++) {
-      const t = evt.results[i][0].transcript;
+      const t = evt.results[i][0].transcript.trim();
       if (evt.results[i].isFinal) {
-        finalBuffer += (finalBuffer ? ' ' : '') + t.trim();
+        // Store/replace by index — handles Chrome re-finalizing same slot
+        finalResults[i] = t;
       } else {
         interim = t;
       }
     }
-    showInterim(finalBuffer + (interim ? ' ' + interim : ''));
-    if (finalBuffer) {
+
+    const accumulated = getFinalText();
+    showInterim(accumulated + (interim ? (accumulated ? ' ' : '') + interim : ''));
+
+    if (accumulated) {
       clearTimeout(silenceTimer);
       silenceTimer = setTimeout(flushBuffer, SILENCE_MS);
     }
   };
 
   recObj.onend = () => {
-    if (finalBuffer.trim()) {
-      flushBuffer();
-    } else {
-      clearInterim();
-    }
+    const text = getFinalText();
+    resetSTT();
+    clearInterim();
+    if (text) translate(text);
+
     if (rec) {
       setTimeout(() => {
-        if (rec) { finalBuffer = ''; try { recObj.start(); } catch(e) {} }
+        if (rec) try { recObj.start(); } catch(e) {}
       }, 150);
     }
   };
@@ -396,9 +416,9 @@ function startRec() {
 
 function stopRec() {
   rec = false;
-  if (finalBuffer.trim()) flushBuffer();
-  clearTimeout(silenceTimer);
-  finalBuffer = '';
+  const text = getFinalText();
+  resetSTT();
+  if (text) translate(text);
   if (recObj) { try { recObj.abort(); } catch(e) {} recObj = null; }
   setStatus('ready');
   clearInterim();
