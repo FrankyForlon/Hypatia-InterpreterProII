@@ -214,7 +214,7 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
         <div class="sdot" id="sdot"></div>
         <span id="stxt">Ready</span>
       </div>
-      <button class="hbtn" id="keyBtn" title="Change API key">⚙</button>
+      <button class="hbtn" id="keyBtn" title="Change API key">&#9881;</button>
     </div>
   </header>
 
@@ -255,12 +255,12 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
         <button class="lbtn on" id="bEN" onclick="setLang('en')">EN</button>
         <button class="lbtn" id="bRU" onclick="setLang('ru')">RU</button>
       </div>
-      <button class="mic off" id="micBtn">🎙</button>
+      <button class="mic off" id="micBtn">&#127897;</button>
     </div>
     <div class="acts">
-      <button class="act" id="expBtn">⬇ Export</button>
-      <button class="act del" id="clrBtn">✕ Clear</button>
-      <button class="act" id="kBtn">🔑 Key</button>
+      <button class="act" id="expBtn">&#8595; Export</button>
+      <button class="act del" id="clrBtn">&#x2715; Clear</button>
+      <button class="act" id="kBtn">&#128273; Key</button>
     </div>
   </footer>
 </div>
@@ -291,10 +291,15 @@ const geminiUrl = k =>
 // STATE
 // ================================================================
 let key = '';
-let lang = 'en';       // active speaker language: 'en' | 'ru'
+let lang = 'en';
 let rec = false;
 let recObj = null;
-let segs = [];          // [{id, lang, original, translated, time}]
+let segs = [];
+
+// Silence-buffer: accumulate isFinal chunks, flush after 800ms quiet
+let finalBuffer = '';
+let silenceTimer = null;
+const SILENCE_MS = 800;
 
 // ================================================================
 // INIT
@@ -358,11 +363,23 @@ function setLang(l) {
 // ================================================================
 function toggleMic() { rec ? stopRec() : startRec(); }
 
+function flushBuffer() {
+  clearTimeout(silenceTimer);
+  silenceTimer = null;
+  const text = finalBuffer.trim();
+  finalBuffer = '';
+  clearInterim();
+  if (text) translate(text);
+}
+
 function startRec() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
     return toast('Speech recognition needs Chrome or Edge. Try typing instead.', true);
   }
+
+  finalBuffer = '';
+  clearTimeout(silenceTimer);
 
   recObj = new SR();
   recObj.lang = lang === 'ru' ? 'ru-RU' : 'en-US';
@@ -379,26 +396,42 @@ function startRec() {
   };
 
   recObj.onresult = evt => {
-    let interim = '', final = '';
+    let interim = '';
     for (let i = evt.resultIndex; i < evt.results.length; i++) {
       const t = evt.results[i][0].transcript;
-      if (evt.results[i].isFinal) final += t;
-      else interim += t;
+      if (evt.results[i].isFinal) {
+        finalBuffer += (finalBuffer ? ' ' : '') + t.trim();
+      } else {
+        interim = t;
+      }
     }
-    showInterim(interim || final);
-    if (final.trim()) {
-      clearInterim();
-      translate(final.trim());
+
+    // Show live preview: accumulated finals + current interim
+    showInterim(finalBuffer + (interim ? ' ' + interim : ''));
+
+    // Reset silence timer — flush when speech pauses for SILENCE_MS
+    if (finalBuffer) {
+      clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(flushBuffer, SILENCE_MS);
     }
   };
 
   recObj.onend = () => {
-    clearInterim();
-    // Auto-restart so recording stays continuous until user stops
+    // Flush anything remaining before restarting
+    if (finalBuffer.trim()) {
+      flushBuffer();
+    } else {
+      clearInterim();
+    }
+
+    // Auto-restart to keep listening continuously
     if (rec) {
       setTimeout(() => {
-        if (rec && recObj) try { recObj.start(); } catch(e) {}
-      }, 100);
+        if (rec) {
+          finalBuffer = '';
+          try { recObj.start(); } catch(e) {}
+        }
+      }, 150);
     }
   };
 
@@ -421,6 +454,10 @@ function startRec() {
 
 function stopRec() {
   rec = false;
+  // Flush any buffered speech before stopping
+  if (finalBuffer.trim()) flushBuffer();
+  clearTimeout(silenceTimer);
+  finalBuffer = '';
   if (recObj) { try { recObj.abort(); } catch(e) {} recObj = null; }
   setStatus('ready');
   clearInterim();
@@ -430,10 +467,10 @@ function stopRec() {
 }
 
 function showInterim(text) {
-  const ruId = lang === 'ru' ? 'ruInterim' : 'enInterim';
-  const enId = lang === 'ru' ? 'enInterim' : 'ruInterim';
-  document.getElementById(ruId).textContent = text;
-  document.getElementById(enId).textContent = '';
+  const activeId = lang === 'ru' ? 'ruInterim' : 'enInterim';
+  const otherIdEl = lang === 'ru' ? 'enInterim' : 'ruInterim';
+  document.getElementById(activeId).textContent = text;
+  document.getElementById(otherIdEl).textContent = '';
 }
 
 function clearInterim() {
@@ -462,8 +499,7 @@ STRICT RULES:
 3. Output natural spoken language — this is live dialogue, not a written document.
 4. No explanations, brackets, translator notes, or caveats.
 
-Text to translate: "${text.replace(/"/g, '\\"').replace(/
-/g, ' ')}"
+Text to translate: "${text.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
 
 Return ONLY valid JSON with no markdown: {"translated": "..."}`;
 
@@ -485,7 +521,7 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
       const err = await res.json().catch(() => ({}));
       const msg = (err.error && err.error.message) || ('HTTP ' + res.status);
       if (res.status === 400) return toast('API error: ' + msg.slice(0, 80), true);
-      if (res.status === 401 || res.status === 403) return toast('Invalid API key. Tap 🔑 to re-enter.', true);
+      if (res.status === 401 || res.status === 403) return toast('Invalid API key. Tap Key to re-enter.', true);
       if (res.status === 429) return toast('Rate limit hit. Please wait a moment.', true);
       throw new Error(msg);
     }
@@ -502,7 +538,6 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
     try {
       translated = (JSON.parse(raw).translated || '').trim();
     } catch(e) {
-      // Gemini sometimes wraps JSON in markdown fences
       const m = raw.match(/"translated"\s*:\s*"([^"]+)"/);
       translated = m ? m[1] : raw.replace(/[{}"{}']/g,'').trim();
     }
@@ -598,7 +633,7 @@ Detected language: ${isRU ? 'Russian' : 'English'}
 Context: Biomedical engineering conference. Domain: cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors, medical devices.
 
 Return ONLY valid JSON (no markdown):
-{"word":"${word}","translation":"[${isRU ? 'English' : 'Russian'} translation]","partOfSpeech":"[noun/verb/adj]","definition":"[precise 1-2 sentence clinical or technical definition]","examples":["[usage in medical context]","[second example]"]}` ;
+{"word":"${word}","translation":"[${isRU ? 'English' : 'Russian'} translation]","partOfSpeech":"[noun/verb/adj]","definition":"[precise 1-2 sentence clinical or technical definition]","examples":["[usage in medical context]","[second example]"]}`;
 
   try {
     const res = await fetch(geminiUrl(key), {
