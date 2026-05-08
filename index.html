@@ -270,7 +270,7 @@ let rec = false;
 let recObj = null;
 let segs = [];
 
-// STT state — keyed by result index so Chrome's re-finalization doesn't duplicate
+// STT state — keyed by result index to handle Chrome's re-finalization
 let finalResults = {};   // { resultIndex: transcript }
 let silenceTimer = null;
 const SILENCE_MS = 900;
@@ -327,12 +327,19 @@ function setLang(l) {
 function toggleMic() { rec ? stopRec() : startRec(); }
 
 function getFinalText() {
-  // Sorted by index to preserve word order
-  return Object.keys(finalResults)
-    .map(Number).sort((a,b) => a-b)
-    .map(i => finalResults[i])
-    .join(' ')
-    .trim();
+  const indices = Object.keys(finalResults).map(Number).sort((a,b) => a-b);
+  if (indices.length === 0) return '';
+  if (indices.length === 1) return finalResults[indices[0]];
+
+  const last = finalResults[indices[indices.length - 1]];
+  const prev = finalResults[indices[indices.length - 2]];
+  // Android Chrome sends cumulative isFinal results: each slot contains all
+  // text spoken so far, not just the new word. Detect this and use only the
+  // latest slot to avoid "hello hello my hello my name..." duplication.
+  if (last.includes(prev)) return last;
+
+  // Desktop Chrome sends independent segments — join them all.
+  return indices.map(i => finalResults[i]).join(' ').trim();
 }
 
 function resetSTT() {
@@ -373,7 +380,6 @@ function startRec() {
     for (let i = evt.resultIndex; i < evt.results.length; i++) {
       const t = evt.results[i][0].transcript.trim();
       if (evt.results[i].isFinal) {
-        // Store/replace by index — handles Chrome re-finalizing same slot
         finalResults[i] = t;
       } else {
         interim = t;
@@ -475,13 +481,23 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
       throw new Error(msg);
     }
     const data = await res.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    // Strip markdown code fences Gemini occasionally adds despite application/json config
+    let raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
+      .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
     let translated = '';
     try {
       translated = (JSON.parse(raw).translated || '').trim();
     } catch(e) {
-      const m = raw.match(/"translated"\s*:\s*"([^"]+)"/);
-      translated = m ? m[1] : raw.replace(/[{}"{}']/g,'').trim();
+      // Fallback: extract value from "translated": "..." without letting the key leak
+      const m = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      if (m) {
+        translated = m[1].replace(/\\"/g, '"').trim();
+      } else {
+        translated = raw
+          .replace(/^\{/, '').replace(/\}$/, '')
+          .replace(/"?translated"?\s*:\s*/, '')
+          .replace(/^["']|["']$/g, '').trim();
+      }
     }
     const seg = {id: Date.now(), lang: src, original: text, translated, time: nowTime()};
     segs.push(seg);
@@ -570,7 +586,8 @@ Return ONLY valid JSON: {"word":"${word}","translation":"[${isRU?'English':'Russ
       })
     });
     const data = await res.json();
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    let raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
+      .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
     const e = JSON.parse(raw);
     document.getElementById('dContent').innerHTML =
       '<div class="dword">' + (e.word || word) + '</div>' +
