@@ -259,7 +259,8 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
 <div class="toast" id="toast"></div>
 
 <script>
-const MODEL = 'gemini-2.0-flash';
+// gemini-2.5-flash: current model as of May 2026
+const MODEL = 'gemini-2.5-flash';
 const geminiUrl = k =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 
@@ -565,7 +566,6 @@ Return ONLY valid JSON: {"word":"${word}","translation":"[${isRU?'English':'Russ
 
 function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeDrawer(); }
 function closeDrawer() { document.getElementById('overlay').classList.remove('open'); }
-
 function saveSession() { localStorage.setItem('hpro_session', JSON.stringify(segs)); }
 
 function doExport() {
