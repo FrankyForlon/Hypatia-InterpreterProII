@@ -273,7 +273,7 @@ let segs = [];
 // STT state — keyed by result index to handle Chrome's re-finalization
 let finalResults = {};   // { resultIndex: transcript }
 let silenceTimer = null;
-const SILENCE_MS = 900;
+const SILENCE_MS = 1400;
 
 document.addEventListener('DOMContentLoaded', () => {
   key = localStorage.getItem('hpro_key') || '';
@@ -459,6 +459,7 @@ STRICT RULES:
 2. Use professional medical and engineering terminology.
 3. Output natural spoken language — live dialogue, not formal prose.
 4. No explanations, brackets, translator notes, or caveats.
+5. Translate the COMPLETE text. Do not truncate or summarize.
 
 Text: "${text.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
 
@@ -470,7 +471,7 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         contents: [{parts: [{text: prompt}]}],
-        generationConfig: {responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 512}
+        generationConfig: {responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 2048}
       })
     });
     if (!res.ok) {
@@ -582,7 +583,7 @@ Return ONLY valid JSON: {"word":"${word}","translation":"[${isRU?'English':'Russ
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         contents: [{parts: [{text: prompt}]}],
-        generationConfig: {responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 400}
+        generationConfig: {responseMimeType: 'application/json', temperature: 0.2, maxOutputTokens: 1024}
       })
     });
     const data = await res.json();
