@@ -455,10 +455,7 @@ function ensureSpeakerName() {
 
 function ensureCollabServer() {
   if (collabServer) return true;
-  if (!IS_LOCAL_DEV) {
-    toast('Public room sharing is not configured yet.', true);
-    return false;
-  }
+  if (!IS_LOCAL_DEV) return false;
   const entered = prompt('WebSocket collaboration server URL', 'wss://');
   collabServer = normalizeWsUrl(entered);
   if (!collabServer) return false;
@@ -475,7 +472,10 @@ function updateIdentityUI() {
 
 function connectCollab() {
   return new Promise((resolve, reject) => {
-    if (!ensureCollabServer()) return reject(new Error('No collaboration server configured.'));
+    if (!ensureCollabServer()) {
+      const msg = IS_LOCAL_DEV ? 'No collaboration server configured.' : 'Public room sharing is not configured yet.';
+      return reject(new Error(msg));
+    }
     if (ws && ws.readyState === WebSocket.OPEN) return resolve();
     if (ws) try { ws.close(); } catch(e) {}
 
