@@ -22,6 +22,7 @@ Public hosted-translation URL after `GEMINI_API_KEY` is set in Netlify:
 
 The static app server is on port `4173`.
 The local collaboration room server is on port `18080`.
+The `server` URL parameter is local-development only and is ignored by the public Netlify app.
 
 If you see `DISPLAY NAME`, `NAME`, `SHARE`, and `JOIN`, you are looking at the new app.
 If you do not see those controls, you are looking at the old app.
@@ -61,6 +62,8 @@ Optional Netlify environment variable for future custom domains:
 Local static testing on port `4173` does not run Netlify Functions. Use demo mode locally unless you are running Netlify Dev or testing the deployed site.
 
 ## Two-Window Room Test
+
+This is currently a local-only test. Public Netlify room sharing needs an approved production sync layer before beta use.
 
 1. In window A, open the local test URL and begin a session.
 2. Click `Share`.

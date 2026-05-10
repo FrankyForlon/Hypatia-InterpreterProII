@@ -299,8 +299,9 @@ const geminiUrl = k =>
 
 const params = new URLSearchParams(window.location.search);
 const HOSTED_GEMINI_URL = '/api/gemini';
-const DEFAULT_COLLAB_SERVER = location.protocol === 'https:' ? '' : 'ws://localhost:8080';
-let collabServer = normalizeWsUrl(params.get('server') || localStorage.getItem('hpro_collab_server') || DEFAULT_COLLAB_SERVER);
+const IS_LOCAL_DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
+const DEFAULT_COLLAB_SERVER = IS_LOCAL_DEV ? 'ws://localhost:8080' : '';
+let collabServer = resolveCollabServer();
 let pendingRoom = (params.get('room') || '').toUpperCase().trim();
 let autoJoinAttempted = false;
 
@@ -436,6 +437,12 @@ function normalizeWsUrl(v) {
   return s;
 }
 
+function resolveCollabServer() {
+  const localOverride = IS_LOCAL_DEV ? params.get('server') : '';
+  const localSaved = IS_LOCAL_DEV ? localStorage.getItem('hpro_collab_server') : '';
+  return normalizeWsUrl(localOverride || localSaved || DEFAULT_COLLAB_SERVER);
+}
+
 function ensureSpeakerName() {
   if (speakerName) return true;
   const n = cleanName(prompt('Display name for this session', 'Speaker'));
@@ -448,6 +455,10 @@ function ensureSpeakerName() {
 
 function ensureCollabServer() {
   if (collabServer) return true;
+  if (!IS_LOCAL_DEV) {
+    toast('Public room sharing is not configured yet.', true);
+    return false;
+  }
   const entered = prompt('WebSocket collaboration server URL', 'wss://');
   collabServer = normalizeWsUrl(entered);
   if (!collabServer) return false;
@@ -593,7 +604,7 @@ function doJoin() {
 function shareUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set('room', roomCode);
-  if (collabServer) url.searchParams.set('server', collabServer);
+  if (IS_LOCAL_DEV && collabServer) url.searchParams.set('server', collabServer);
   url.searchParams.delete('name');
   return url.toString();
 }

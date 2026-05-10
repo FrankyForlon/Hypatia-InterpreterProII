@@ -18,6 +18,7 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Add no-key demo mode for safe UI/classroom testing.
 - [x] Add hosted `/api/gemini` endpoint so production can hide the Gemini key.
 - [x] Restrict hosted Gemini endpoint origins and remove the `?api=` override.
+- [x] Remove public `?server=` WebSocket override to prevent transcript exfiltration links.
 
 ## Next Engineering Decisions
 

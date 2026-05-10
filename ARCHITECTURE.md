@@ -67,6 +67,8 @@ Local test server URL:
 
 Public sharing is not production-ready until the room server is deployed as `wss://...` or replaced by a different sync layer.
 
+The public app intentionally ignores `?server=` and does not prompt for arbitrary collaboration servers. The `server` URL override is local-development only, so crafted public links cannot redirect transcript sync to an attacker-controlled WebSocket endpoint.
+
 ## Canonical Segment Model
 
 Current segments are shaped like:
@@ -144,4 +146,5 @@ Decision criteria:
 - Browser Gemini keys are acceptable for local fallback testing only.
 - Production Gemini keys must live in Netlify environment variables.
 - Hosted Gemini endpoint must stay restricted to trusted origins; do not reintroduce URL-based API endpoint overrides.
+- Public collaboration must not accept arbitrary WebSocket endpoints from URL parameters.
 - Manual typed input must always work, even if mic/STT fails.

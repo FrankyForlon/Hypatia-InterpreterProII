@@ -40,6 +40,7 @@ What works locally:
 - PWA manifest and service worker basics.
 - No-key demo mode for safe UI/classroom testing without Gemini API spend.
 - Hosted Gemini endpoint at `/api/gemini` through `netlify/functions/gemini.ts`.
+- Public app ignores arbitrary `?server=` WebSocket overrides; room sharing still needs an approved production sync layer.
 
 What is not production-ready:
 
