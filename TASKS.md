@@ -19,12 +19,13 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Add hosted `/api/gemini` endpoint so production can hide the Gemini key.
 - [x] Restrict hosted Gemini endpoint origins and remove the `?api=` override.
 - [x] Remove public `?server=` WebSocket override to prevent transcript exfiltration links.
+- [x] Add translator profiles and context prompt for classroom/medical/travel/literal modes.
 
 ## Next Engineering Decisions
 
 - [ ] Decide production sync layer: WebSocket room server vs Firestore vs serverless realtime.
 - [x] Move Gemini calls behind a server endpoint before any real public beta.
-- [ ] Set `GEMINI_API_KEY` in Netlify and verify live hosted translation.
+- [x] Set `GEMINI_API_KEY` in Netlify and verify live hosted translation.
 - [ ] Add edit-and-retranslate for individual transcript segments.
 - [ ] Add CSV glossary upload for session terminology.
 - [x] Add a simple no-key demo/mock mode for testing the UI without spending API credits.
@@ -36,6 +37,7 @@ Updated by agents after completing work. Keep this short and current.
 - [ ] User accounts.
 - [ ] Export to DOCX/PDF/Markdown.
 - [ ] Education/ELL landing page and outreach notes.
+- [ ] Add transcript/raw-audio timestamps and richer stenographer controls.
 - [ ] HIPAA/security architecture review.
 - [ ] Billing and subscription model.
 

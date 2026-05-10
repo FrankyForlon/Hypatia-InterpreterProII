@@ -21,7 +21,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);
   font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;overflow:hidden}
 #setup{position:fixed;inset:0;background:var(--bg);z-index:999;
-  display:flex;align-items:center;justify-content:center;padding:2rem}
+  display:flex;align-items:center;justify-content:center;padding:2rem;overflow-y:auto}
 #setup.gone{display:none}
 .sc{max-width:340px;width:100%;text-align:center}
 .logo-big{width:64px;height:64px;background:var(--amber);border-radius:18px;
@@ -39,6 +39,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);
 .name-in{font-family:inherit}
 .key-in:focus{border-color:var(--amber)}
 .key-in::placeholder{color:var(--muted)}
+.select-in{font-family:inherit}
+.context-in{font-family:inherit;min-height:58px;resize:vertical;line-height:1.4}
 .go-btn{width:100%;background:#fff;color:#000;border:none;padding:1rem;
   border-radius:14px;font-size:0.7rem;font-weight:900;letter-spacing:0.18em;
   text-transform:uppercase;cursor:pointer;transition:background 0.15s}
@@ -104,9 +106,10 @@ main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
   letter-spacing:0.1em;color:var(--muted);margin-bottom:0.25rem;
   display:flex;align-items:center;gap:0.4rem}
 .seg-meta::after{content:'';flex:1;height:1px;background:var(--border)}
-.seg-text{line-height:1.75}
-.seg-text.ru{color:var(--amber);font-size:1.05rem;font-weight:500}
-.seg-text.en{color:#d4d4d8;font-size:0.9rem;font-weight:300}
+.seg-text{line-height:1.75;font-size:1.04rem;font-weight:450}
+.seg-text.ru{color:var(--amber)}
+.seg-text.en{color:#fafafa}
+.seg-text.pending{color:var(--dim);font-style:italic;font-weight:300}
 .word{cursor:pointer;border-radius:3px;display:inline;transition:background 0.15s}
 .word:hover{background:var(--amber-bg)}
 .interim-box{font-size:0.82rem;font-style:italic;color:var(--dim);
@@ -196,6 +199,15 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
     <input class="key-in" id="ki" type="password" placeholder="Leave blank for hosted endpoint" autocomplete="off" spellcheck="false">
     <div class="lbl">Display Name</div>
     <input class="key-in name-in" id="nameIn" type="text" placeholder="Mark, Anton, Interpreter..." autocomplete="name" spellcheck="false">
+    <div class="lbl">Translator</div>
+    <select class="key-in select-in" id="profileIn">
+      <option value="classroom">Nadia · Russian Classroom</option>
+      <option value="medical">Dr. Vera · Medical Conference</option>
+      <option value="travel">Mila · Everyday Travel</option>
+      <option value="literal">Anton · Literal Interpreter</option>
+    </select>
+    <div class="lbl">Context</div>
+    <textarea class="key-in context-in" id="contextIn" placeholder="e.g. Russian language class, first lesson, adult students..." spellcheck="true"></textarea>
     <button class="go-btn" id="goBtn">Begin Session</button>
     <button class="demo-btn" id="demoBtn">Use Demo Mode</button>
     <div class="hint">
@@ -312,11 +324,36 @@ let rec = false;
 let recObj = null;
 let segs = [];
 let speakerName = localStorage.getItem('hpro_name') || '';
+let translatorProfile = localStorage.getItem('hpro_profile') || 'classroom';
+let sessionContext = localStorage.getItem('hpro_context') || 'Russian language class with adult continuing-education students.';
 let speakerId = localStorage.getItem('hpro_speaker_id') || '';
 if (!speakerId) {
   speakerId = 'sp_' + Math.random().toString(36).slice(2, 10);
   localStorage.setItem('hpro_speaker_id', speakerId);
 }
+
+const TRANSLATOR_PROFILES = {
+  classroom: {
+    label: 'Nadia · Russian Classroom',
+    domain: 'Russian-language classroom and Russian history discussion for adult continuing-education students.',
+    style: 'Warm, teacherly, clear, and natural for classroom dialogue. When an English speaker addresses "class", prefer "класс", "студенты", or "ребята" depending on tone; do not translate it as "коллеги" unless the context is professional colleagues.'
+  },
+  medical: {
+    label: 'Dr. Vera · Medical Conference',
+    domain: 'Biomedical, clinical, and medical-engineering interpretation: cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors, medical devices.',
+    style: 'Precise, professional, medically literate conference interpretation. Preserve technical terms and clinical polarity.'
+  },
+  travel: {
+    label: 'Mila · Everyday Travel',
+    domain: 'Restaurants, hotels, transit, errands, introductions, and everyday travel situations.',
+    style: 'Plain, friendly, idiomatic speech. Avoid specialized professional language unless the user context asks for it.'
+  },
+  literal: {
+    label: 'Anton · Literal Interpreter',
+    domain: 'General bilingual interpretation where preserving wording and structure is more important than elegance.',
+    style: 'Stay close to the source wording. Fix only obvious transcription punctuation, and avoid embellishment.'
+  }
+};
 
 let ws = null;
 let roomCode = '';
@@ -332,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
   key = IS_LOCAL_DEV ? (localStorage.getItem('hpro_key') || '') : '';
   if (!IS_LOCAL_DEV) localStorage.removeItem('hpro_key');
   document.getElementById('nameIn').value = speakerName;
+  document.getElementById('profileIn').value = TRANSLATOR_PROFILES[translatorProfile] ? translatorProfile : 'classroom';
+  document.getElementById('contextIn').value = sessionContext;
   if (key || demoMode) boot();
   document.getElementById('goBtn').onclick = doSetup;
   document.getElementById('demoBtn').onclick = doDemo;
@@ -359,6 +398,7 @@ function doSetup() {
     speakerName = n;
     localStorage.setItem('hpro_name', speakerName);
   }
+  saveTranslatorSettings();
   key = v;
   demoMode = false;
   localStorage.removeItem('hpro_demo');
@@ -377,6 +417,7 @@ function doDemo() {
     speakerName = n;
     localStorage.setItem('hpro_name', speakerName);
   }
+  saveTranslatorSettings();
   key = '';
   demoMode = true;
   localStorage.removeItem('hpro_key');
@@ -428,6 +469,14 @@ function setLang(l) {
 
 function cleanName(v) {
   return String(v || '').trim().replace(/\s+/g, ' ').slice(0, 36);
+}
+
+function saveTranslatorSettings() {
+  const chosen = document.getElementById('profileIn').value;
+  translatorProfile = TRANSLATOR_PROFILES[chosen] ? chosen : 'classroom';
+  sessionContext = String(document.getElementById('contextIn').value || '').trim().slice(0, 800);
+  localStorage.setItem('hpro_profile', translatorProfile);
+  localStorage.setItem('hpro_context', sessionContext);
 }
 
 function normalizeWsUrl(v) {
@@ -749,6 +798,18 @@ function clearInterim() {
 async function translate(text, srcOverride) {
   setStatus('processing');
   const src = srcOverride || lang;
+  const seg = {
+    id: Date.now() + '-' + speakerId,
+    speakerId,
+    speaker: speakerName || 'Speaker',
+    lang: src,
+    original: text,
+    cleanOriginal: text,
+    translated: '',
+    pending: true,
+    time: nowTime()
+  };
+  addSegment(seg, false);
   const tgt = src === 'en' ? 'ru' : 'en';
   const srcName = src === 'en' ? 'English' : 'Russian';
   const tgtName = tgt === 'en' ? 'English' : 'Russian';
@@ -770,11 +831,20 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
 
   try {
     let translated = '';
+    let cleanOriginal = text;
     if (demoMode) {
       translated = demoTranslate(text, src);
+      cleanOriginal = demoCleanOriginal(text);
     } else if (!key) {
-      const data = await callHostedGemini({type: 'translate', text, src});
+      const data = await callHostedGemini({
+        type: 'translate',
+        text,
+        src,
+        profile: translatorProfile,
+        context: sessionContext
+      });
       translated = (data.translated || '').trim();
+      cleanOriginal = (data.cleanOriginal || text).trim();
     } else {
       const res = await fetch(geminiUrl(key), {
         method: 'POST',
@@ -796,7 +866,9 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
       let raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
         .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
       try {
-        translated = (JSON.parse(raw).translated || '').trim();
+        const parsed = JSON.parse(raw);
+        translated = (parsed.translated || '').trim();
+        cleanOriginal = (parsed.cleanOriginal || text).trim();
       } catch(e) {
         // Fallback: extract value from "translated": "..." without letting the key leak
         const m = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
@@ -810,17 +882,17 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
         }
       }
     }
-    const seg = {
-      id: Date.now() + '-' + speakerId,
-      speakerId,
-      speaker: speakerName || 'Speaker',
-      lang: src,
-      original: text,
-      translated,
-      time: nowTime()
-    };
-    addSegment(seg, true);
+    seg.cleanOriginal = cleanOriginal || text;
+    seg.translated = translated || '—';
+    seg.pending = false;
+    saveSession();
+    renderAll();
+    sendCollab({type:'add', seg});
   } catch(e) {
+    seg.pending = false;
+    seg.translated = 'Translation failed.';
+    saveSession();
+    renderAll();
     toast('Translation failed: ' + String(e.message).slice(0, 140), true);
   } finally {
     setStatus(rec ? 'listening' : 'ready');
@@ -839,6 +911,12 @@ function demoTranslate(text, src) {
   if (/привет|здравств/i.test(t)) return 'Demo: hello. I am glad to meet you.';
   if (/студент|ученик|курс/i.test(t)) return 'Demo: the student can answer and the class can see the English translation.';
   return 'Demo English translation: ' + t;
+}
+
+function demoCleanOriginal(text) {
+  const t = text.trim();
+  if (!t) return '';
+  return t.charAt(0).toUpperCase() + t.slice(1).replace(/\s+([?.!,])/g, '$1');
 }
 
 async function callHostedGemini(payload) {
@@ -902,15 +980,18 @@ function appendSeg(seg) {
   const ruEl = document.getElementById('ruMsgs');
   const enEl = document.getElementById('enMsgs');
   if (ruEl.querySelector('.empty')) { ruEl.innerHTML = ''; enEl.innerHTML = ''; }
-  const ruText = seg.lang === 'ru' ? seg.original : seg.translated;
-  const enText = seg.lang === 'en' ? seg.original : seg.translated;
+  const sourceText = seg.cleanOriginal || seg.original;
+  const pendingText = 'Translating...';
+  const ruText = seg.lang === 'ru' ? sourceText : (seg.pending ? pendingText : seg.translated);
+  const enText = seg.lang === 'en' ? sourceText : (seg.pending ? pendingText : seg.translated);
   const label = (seg.speaker || 'Speaker') + ' · ' + (seg.lang === 'en' ? 'EN' : 'RU') + ' · ' + seg.time;
   function mkEl(text, cls) {
     const d = document.createElement('div');
     d.className = 'seg';
     d.dataset.id = seg.id;
+    const pendingClass = seg.pending && ((seg.lang === 'en' && cls === 'ru') || (seg.lang === 'ru' && cls === 'en')) ? ' pending' : '';
     d.innerHTML = '<div class="seg-meta">' + escapeHtml(label) + '</div>' +
-      '<div class="seg-text ' + cls + '">' + spanWords(text) + '</div>';
+      '<div class="seg-text ' + cls + pendingClass + '">' + spanWords(text) + '</div>';
     return d;
   }
   ruEl.appendChild(mkEl(ruText, 'ru'));
@@ -952,7 +1033,12 @@ async function lookup(word) {
   }
   if (!key) {
     try {
-      const e = await callHostedGemini({type: 'lookup', word});
+      const e = await callHostedGemini({
+        type: 'lookup',
+        word,
+        profile: translatorProfile,
+        context: sessionContext
+      });
       renderLookup(word, e);
     } catch(e) {
       document.getElementById('dContent').innerHTML =
@@ -1040,8 +1126,9 @@ function saveSession() { localStorage.setItem('hpro_session', JSON.stringify(seg
 function doExport() {
   if (!segs.length) return toast('No transcript to export yet.');
   const lines = segs.map(s => {
-    const ru = s.lang === 'ru' ? s.original : s.translated;
-    const en = s.lang === 'en' ? s.original : s.translated;
+    const source = s.cleanOriginal || s.original;
+    const ru = s.lang === 'ru' ? source : s.translated;
+    const en = s.lang === 'en' ? source : s.translated;
     return '[' + s.time + '] ' + (s.speaker || 'Speaker') + ' (' + s.lang.toUpperCase() + ')\nRU: ' + ru + '\nEN: ' + en;
   });
   const body = 'HYPATIA INTERPRETERPRO — Session Transcript\n' +

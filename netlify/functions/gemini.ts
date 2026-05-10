@@ -1,11 +1,35 @@
 const MODEL = "gemini-2.5-flash";
 const MAX_TEXT_LENGTH = 4000;
 const MAX_WORD_LENGTH = 80;
+const MAX_CONTEXT_LENGTH = 800;
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://hypatia-interpreterpro.netlify.app",
   "http://localhost:8888",
   "http://127.0.0.1:8888",
 ];
+
+const TRANSLATOR_PROFILES = {
+  classroom: {
+    label: "Nadia - Russian Classroom",
+    domain: "Russian-language classroom and Russian history discussion for adult continuing-education students.",
+    style: "Warm, teacherly, clear, and natural for classroom dialogue. When an English speaker addresses 'class', prefer 'класс', 'студенты', or 'ребята' depending on tone; do not translate it as 'коллеги' unless the context is professional colleagues.",
+  },
+  medical: {
+    label: "Dr. Vera - Medical Conference",
+    domain: "Biomedical, clinical, and medical-engineering interpretation: cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors, medical devices.",
+    style: "Precise, professional, medically literate conference interpretation. Preserve technical terms and clinical polarity.",
+  },
+  travel: {
+    label: "Mila - Everyday Travel",
+    domain: "Restaurants, hotels, transit, errands, introductions, and everyday travel situations.",
+    style: "Plain, friendly, idiomatic speech. Avoid specialized professional language unless the user context asks for it.",
+  },
+  literal: {
+    label: "Anton - Literal Interpreter",
+    domain: "General bilingual interpretation where preserving wording and structure is more important than elegance.",
+    style: "Stay close to the source wording. Fix only obvious transcription punctuation, and avoid embellishment.",
+  },
+};
 
 const baseJsonHeaders = {
   "content-type": "application/json; charset=utf-8",
@@ -43,17 +67,21 @@ export default async function gemini(req) {
     if (body.type === "translate") {
       const src = body.src === "ru" ? "ru" : "en";
       const text = cleanText(body.text, MAX_TEXT_LENGTH);
+      const profile = cleanProfile(body.profile);
+      const context = cleanText(body.context, MAX_CONTEXT_LENGTH);
       if (!text) return json({ error: "TEXT_REQUIRED" }, 400, origin);
 
-      const translated = await translate(apiKey, text, src);
-      return json({ translated }, 200, origin);
+      const result = await translate(apiKey, text, src, profile, context);
+      return json(result, 200, origin);
     }
 
     if (body.type === "lookup") {
       const word = cleanText(body.word, MAX_WORD_LENGTH);
+      const profile = cleanProfile(body.profile);
+      const context = cleanText(body.context, MAX_CONTEXT_LENGTH);
       if (!word) return json({ error: "WORD_REQUIRED" }, 400, origin);
 
-      const entry = await lookup(apiKey, word);
+      const entry = await lookup(apiKey, word, profile, context);
       return json(entry, 200, origin);
     }
 
@@ -120,23 +148,35 @@ function cleanText(value, maxLength) {
   return String(value || "").trim().replace(/\s+/g, " ").slice(0, maxLength);
 }
 
-async function translate(apiKey, text, src) {
+function cleanProfile(value) {
+  const key = String(value || "classroom").trim();
+  return Object.hasOwn(TRANSLATOR_PROFILES, key) ? key : "classroom";
+}
+
+async function translate(apiKey, text, src, profileKey, context) {
   const srcName = src === "en" ? "English" : "Russian";
   const tgtName = src === "en" ? "Russian" : "English";
-  const prompt = `You are a simultaneous interpreter at a biomedical engineering conference. Participants include Russian-speaking medical engineers and doctors from CIS countries, and English-speaking American researchers. Domain: cardiology, bioelectronics, dialysis, ECMO, nanotech, biosensors, medical devices.
+  const profile = TRANSLATOR_PROFILES[profileKey] || TRANSLATOR_PROFILES.classroom;
+  const sessionContext = context || profile.domain;
+  const prompt = `You are ${profile.label}, a simultaneous interpreter.
+
+Domain: ${profile.domain}
+Style: ${profile.style}
+Session context: ${sessionContext}
 
 Translate the following ${srcName} text to ${tgtName}.
 
 STRICT RULES:
 1. Preserve exact logical polarity. Negatives must stay negative. Never flip meaning.
-2. Use professional medical and engineering terminology.
-3. Output natural spoken language for live dialogue, not formal prose.
-4. No explanations, brackets, translator notes, or caveats.
-5. Translate the complete text. Do not truncate or summarize.
+2. Use the domain, style, and session context above.
+3. Clean the source transcript only for punctuation, capitalization, and obvious speech-recognition formatting. Do not change meaning.
+4. Output natural spoken language for live dialogue.
+5. No explanations, brackets, translator notes, or caveats.
+6. Translate the complete text. Do not truncate or summarize.
 
 Text: "${escapePromptText(text)}"
 
-Return only valid JSON with no markdown: {"translated": "..."}`;
+Return only valid JSON with no markdown: {"cleanOriginal":"...","translated":"..."}`;
 
   const parsed = await callGemini(apiKey, prompt, {
     responseMimeType: "application/json",
@@ -146,14 +186,20 @@ Return only valid JSON with no markdown: {"translated": "..."}`;
 
   const translated = String(parsed.translated || "").trim();
   if (!translated) throw statusError("Gemini returned an empty translation.", 502);
-  return translated;
+  return {
+    cleanOriginal: String(parsed.cleanOriginal || text).trim().slice(0, MAX_TEXT_LENGTH),
+    translated,
+  };
 }
 
-async function lookup(apiKey, word) {
+async function lookup(apiKey, word, profileKey, context) {
   const isRu = /[Ѐ-ӿ]/.test(word);
+  const profile = TRANSLATOR_PROFILES[profileKey] || TRANSLATOR_PROFILES.classroom;
+  const sessionContext = context || profile.domain;
   const prompt = `Medical dictionary entry for: "${escapePromptText(word)}"
 Language: ${isRu ? "Russian" : "English"}.
-Context: Biomedical engineering, cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors.
+Context: ${sessionContext}
+Translator profile: ${profile.label}; ${profile.domain}
 Return only valid JSON: {"word":"${escapePromptText(word)}","translation":"[${isRu ? "English" : "Russian"} translation]","partOfSpeech":"[noun/verb/adj]","definition":"[1-2 sentence clinical definition]","examples":["[medical usage example]","[second example]"]}`;
 
   const parsed = await callGemini(apiKey, prompt, {

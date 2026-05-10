@@ -41,6 +41,7 @@ What works locally:
 - No-key demo mode for safe UI/classroom testing without Gemini API spend.
 - Hosted Gemini endpoint at `/api/gemini` through `netlify/functions/gemini.ts`.
 - Public app ignores arbitrary `?server=` WebSocket overrides; room sharing still needs an approved production sync layer.
+- Translator profiles and free-text session context now influence hosted translation.
 
 What is not production-ready:
 

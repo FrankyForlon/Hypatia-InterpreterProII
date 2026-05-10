@@ -33,7 +33,7 @@ If you leave the key field blank and click `Begin Session`, Hypatia uses the hos
 
 1. Open the local test URL in Chrome or Edge.
 2. For a safe UI test, enter a display name and click `Use Demo Mode`.
-3. For a hosted translation test, leave the key blank, enter a display name, then click `Begin Session`.
+3. For a hosted translation test, choose a translator profile, optionally write session context, leave the key blank, enter a display name, then click `Begin Session`.
 4. For a temporary local BYO-key test, enter your Gemini API key and a display name, then click `Begin Session`.
 5. Confirm the top strip shows your name and `SOLO`.
 6. Type an English sentence in the bottom bar and press Enter.

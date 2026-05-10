@@ -31,6 +31,11 @@ Supported actions:
 - `translate`: `{type:"translate", text, src}`
 - `lookup`: `{type:"lookup", word}`
 
+Translation requests may also include:
+
+- `profile`: `classroom`, `medical`, `travel`, or `literal`
+- `context`: a short free-text session description
+
 Required Netlify environment variable:
 
 - `GEMINI_API_KEY`
@@ -100,6 +105,7 @@ Future fields should be added deliberately:
 ```
 
 The original transcript is the record of truth. `translated` is a view that can be regenerated.
+`cleanOriginal` is a lightly edited display view for punctuation and capitalization; it should not replace `original` as the raw record.
 
 ## Backend Decision Record Needed
 

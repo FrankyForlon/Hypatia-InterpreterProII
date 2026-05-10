@@ -16,6 +16,7 @@ The current wedge is not "all languages for everyone." The near-term wedge is a 
 - Manual type-to-send fallback.
 - Silence buffer and Android Chrome cumulative-result dedup.
 - Split-screen bilingual display: Russian top, English bottom.
+- Translator profile/context controls for classroom, medical conference, travel, and literal modes.
 - Tapable word lookup drawer.
 - Export transcript as `.txt`.
 - Local persistence through `localStorage`.
@@ -41,6 +42,7 @@ The current wedge is not "all languages for everyone." The near-term wedge is a 
 - Zero install: open a URL and speak or type.
 - Both people see both languages simultaneously.
 - The original transcript is the record of truth; translation is a view.
+- The displayed source transcript may be lightly cleaned for punctuation/capitalization, while the raw source text remains stored.
 - Every session should become a usable, exportable artifact.
 - Manual input must always remain available when mic capture fails.
 
@@ -61,4 +63,3 @@ The root app currently has local WebSocket room sharing. Firestore remains a pos
 - Firestore
 - Netlify/Vercel serverless or edge functions
 - A managed realtime service
-
