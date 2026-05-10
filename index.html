@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#080808">
+<link rel="manifest" href="/manifest.json">
 <title>Hypatia InterpreterPro</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -35,6 +36,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);
   color:var(--text);padding:0.875rem 1rem;border-radius:12px;font-size:0.875rem;
   font-family:'Courier New',monospace;outline:none;margin-bottom:0.75rem;
   transition:border-color 0.2s}
+.name-in{font-family:inherit}
 .key-in:focus{border-color:var(--amber)}
 .key-in::placeholder{color:var(--muted)}
 .go-btn{width:100%;background:#fff;color:#000;border:none;padding:1rem;
@@ -70,6 +72,18 @@ header{flex-shrink:0;display:flex;align-items:center;justify-content:space-betwe
   border-radius:8px;color:var(--dim);cursor:pointer;display:flex;
   align-items:center;justify-content:center;font-size:14px;transition:all 0.15s}
 .hbtn:hover{border-color:rgba(255,255,255,0.2);color:#fff}
+.sessionbar{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  gap:0.75rem;padding:0.45rem 1rem;background:#0b0b0b;border-bottom:1px solid var(--border)}
+.session-meta{min-width:0;display:flex;align-items:center;gap:0.55rem;
+  font-size:0.58rem;font-weight:800;text-transform:uppercase;letter-spacing:0.11em;color:var(--dim)}
+.session-meta strong{color:var(--text);font-size:0.6rem;max-width:38vw;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.room-pill{color:var(--amber);font-family:'Courier New',monospace;letter-spacing:0.08em}
+.session-actions{display:flex;gap:0.35rem;flex-shrink:0}
+.mini-btn{background:var(--surf2);border:1px solid var(--border);color:var(--dim);
+  border-radius:7px;padding:0.28rem 0.5rem;font-size:0.55rem;font-weight:900;
+  letter-spacing:0.1em;text-transform:uppercase;cursor:pointer}
+.mini-btn:hover{border-color:rgba(255,255,255,0.2);color:#fff}
 main{flex:1;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .zone{flex:1;overflow-y:auto;padding:0.875rem 1rem;min-height:0;scroll-behavior:smooth}
 .zone::-webkit-scrollbar{width:2px}
@@ -120,7 +134,7 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
 .mic.off{background:#fff;color:#000}
 .mic.off:hover{background:var(--amber);transform:rotate(5deg)}
 .mic.on{background:var(--red);color:#fff;animation:blink 1.2s infinite}
-.acts{display:flex;justify-content:center;gap:0.5rem;margin-top:0.4rem}
+.acts{display:flex;justify-content:center;gap:0.5rem;margin-top:0.4rem;flex-wrap:wrap}
 .act{background:none;border:1px solid var(--border);color:var(--dim);
   font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;
   padding:0.3rem 0.65rem;border-radius:7px;cursor:pointer;transition:all 0.15s}
@@ -176,6 +190,8 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
     <div class="sub">InterpreterPro &middot; 1.0</div>
     <div class="lbl">Gemini API Key</div>
     <input class="key-in" id="ki" type="password" placeholder="AIza..." autocomplete="off" spellcheck="false">
+    <div class="lbl">Display Name</div>
+    <input class="key-in name-in" id="nameIn" type="text" placeholder="Mark, Anton, Interpreter..." autocomplete="name" spellcheck="false">
     <button class="go-btn" id="goBtn">Begin Session</button>
     <div class="hint">
       Free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a><br>
@@ -201,6 +217,17 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
       <button class="hbtn" id="keyBtn" title="Change API key">&#9881;</button>
     </div>
   </header>
+  <div class="sessionbar">
+    <div class="session-meta">
+      <strong id="speakerName">Speaker</strong>
+      <span class="room-pill" id="roomState">Solo</span>
+    </div>
+    <div class="session-actions">
+      <button class="mini-btn" id="nameBtn">Name</button>
+      <button class="mini-btn" id="shareBtn">Share</button>
+      <button class="mini-btn" id="joinBtn">Join</button>
+    </div>
+  </div>
 
   <main>
     <div class="zone zone-ru" id="zru">
@@ -264,11 +291,28 @@ const MODEL = 'gemini-2.5-flash';
 const geminiUrl = k =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 
+const params = new URLSearchParams(window.location.search);
+const DEFAULT_COLLAB_SERVER = location.protocol === 'https:' ? '' : 'ws://localhost:8080';
+let collabServer = normalizeWsUrl(params.get('server') || localStorage.getItem('hpro_collab_server') || DEFAULT_COLLAB_SERVER);
+let pendingRoom = (params.get('room') || '').toUpperCase().trim();
+let autoJoinAttempted = false;
+
 let key = '';
 let lang = 'en';
 let rec = false;
 let recObj = null;
 let segs = [];
+let speakerName = localStorage.getItem('hpro_name') || '';
+let speakerId = localStorage.getItem('hpro_speaker_id') || '';
+if (!speakerId) {
+  speakerId = 'sp_' + Math.random().toString(36).slice(2, 10);
+  localStorage.setItem('hpro_speaker_id', speakerId);
+}
+
+let ws = null;
+let roomCode = '';
+let roomRole = 'solo';
+let joinedWaiter = null;
 
 // STT state — keyed by result index to handle Chrome's re-finalization
 let finalResults = {};   // { resultIndex: transcript }
@@ -277,23 +321,33 @@ const SILENCE_MS = 1400;
 
 document.addEventListener('DOMContentLoaded', () => {
   key = localStorage.getItem('hpro_key') || '';
+  document.getElementById('nameIn').value = speakerName;
   if (key) boot();
   document.getElementById('goBtn').onclick = doSetup;
   document.getElementById('ki').addEventListener('keydown', e => e.key === 'Enter' && doSetup());
+  document.getElementById('nameIn').addEventListener('keydown', e => e.key === 'Enter' && doSetup());
   document.getElementById('micBtn').addEventListener('click', toggleMic);
   document.getElementById('tin').addEventListener('keydown', e => e.key === 'Enter' && doText());
   document.getElementById('expBtn').addEventListener('click', doExport);
   document.getElementById('clrBtn').addEventListener('click', doClear);
   document.getElementById('kBtn').addEventListener('click', doKey);
   document.getElementById('keyBtn').addEventListener('click', doKey);
+  document.getElementById('nameBtn').addEventListener('click', doName);
+  document.getElementById('shareBtn').addEventListener('click', doShare);
+  document.getElementById('joinBtn').addEventListener('click', doJoin);
   const saved = localStorage.getItem('hpro_session');
-  if (saved) try { segs = JSON.parse(saved); renderAll(); } catch(e) {}
+  if (saved && !pendingRoom) try { segs = JSON.parse(saved); renderAll(); } catch(e) {}
 });
 
 function doSetup() {
   const v = document.getElementById('ki').value.trim();
   if (!v) return toast('Enter your Gemini API key.', true);
   if (!v.startsWith('AIza')) return toast('Key should start with AIza...', true);
+  const n = cleanName(document.getElementById('nameIn').value);
+  if (n) {
+    speakerName = n;
+    localStorage.setItem('hpro_name', speakerName);
+  }
   key = v;
   localStorage.setItem('hpro_key', key);
   boot();
@@ -302,7 +356,12 @@ function doSetup() {
 function boot() {
   document.getElementById('setup').classList.add('gone');
   document.getElementById('app').style.display = 'flex';
+  updateIdentityUI();
   setStatus('ready');
+  if (pendingRoom && !autoJoinAttempted) {
+    autoJoinAttempted = true;
+    setTimeout(() => joinRoom(pendingRoom, true), 100);
+  }
 }
 
 function doKey() {
@@ -312,6 +371,15 @@ function doKey() {
   document.getElementById('setup').classList.remove('gone');
   document.getElementById('app').style.display = 'none';
   document.getElementById('ki').value = '';
+  document.getElementById('nameIn').value = speakerName;
+}
+
+function doName() {
+  const next = cleanName(prompt('Display name for this session', speakerName || 'Speaker'));
+  if (!next) return;
+  speakerName = next;
+  localStorage.setItem('hpro_name', speakerName);
+  updateIdentityUI();
 }
 
 function setLang(l) {
@@ -322,6 +390,197 @@ function setLang(l) {
     l === 'en' ? 'Type in English (Enter to send)...' : 'Введите текст (Enter)...';
   clearInterim();
   if (rec) { stopRec(); startRec(); }
+}
+
+function cleanName(v) {
+  return String(v || '').trim().replace(/\s+/g, ' ').slice(0, 36);
+}
+
+function normalizeWsUrl(v) {
+  const s = String(v || '').trim();
+  if (!s) return '';
+  if (s.startsWith('ws://') || s.startsWith('wss://')) return s.replace(/\/$/, '');
+  if (s.startsWith('https://')) return 'wss://' + s.slice(8).replace(/\/$/, '');
+  if (s.startsWith('http://')) return 'ws://' + s.slice(7).replace(/\/$/, '');
+  return s;
+}
+
+function ensureSpeakerName() {
+  if (speakerName) return true;
+  const n = cleanName(prompt('Display name for this session', 'Speaker'));
+  if (!n) return false;
+  speakerName = n;
+  localStorage.setItem('hpro_name', speakerName);
+  updateIdentityUI();
+  return true;
+}
+
+function ensureCollabServer() {
+  if (collabServer) return true;
+  const entered = prompt('WebSocket collaboration server URL', 'wss://');
+  collabServer = normalizeWsUrl(entered);
+  if (!collabServer) return false;
+  localStorage.setItem('hpro_collab_server', collabServer);
+  return true;
+}
+
+function updateIdentityUI() {
+  const name = speakerName || 'Speaker';
+  const room = roomCode ? roomCode : 'Solo';
+  document.getElementById('speakerName').textContent = name;
+  document.getElementById('roomState').textContent = roomRole === 'solo' ? room : roomRole + ' ' + room;
+}
+
+function connectCollab() {
+  return new Promise((resolve, reject) => {
+    if (!ensureCollabServer()) return reject(new Error('No collaboration server configured.'));
+    if (ws && ws.readyState === WebSocket.OPEN) return resolve();
+    if (ws) try { ws.close(); } catch(e) {}
+
+    ws = new WebSocket(collabServer);
+    ws.onopen = () => resolve();
+    ws.onerror = () => reject(new Error('Could not connect to collaboration server.'));
+    ws.onclose = () => {
+      if (roomCode) {
+        roomRole = 'solo';
+        roomCode = '';
+        updateIdentityUI();
+      }
+    };
+    ws.onmessage = handleCollabMessage;
+  });
+}
+
+function waitForJoined() {
+  return new Promise((resolve, reject) => {
+    clearTimeout(joinedWaiter?.timer);
+    joinedWaiter = {
+      resolve,
+      reject,
+      timer: setTimeout(() => {
+        joinedWaiter = null;
+        reject(new Error('Room join timed out.'));
+      }, 7000)
+    };
+  });
+}
+
+async function createRoom() {
+  if (!ensureSpeakerName()) throw new Error('Name required before sharing.');
+  await connectCollab();
+  const joined = waitForJoined();
+  ws.send(JSON.stringify({type:'create'}));
+  const msg = await joined;
+  if (segs.length) segs.forEach(seg => sendCollab({type:'add', seg}));
+  return msg.room;
+}
+
+async function joinRoom(code, quiet) {
+  const room = String(code || '').toUpperCase().trim();
+  if (!room) return;
+  if (!ensureSpeakerName()) return;
+  try {
+    await connectCollab();
+    const joined = waitForJoined();
+    ws.send(JSON.stringify({type:'join', room}));
+    await joined;
+    toast('Joined room ' + room + '.');
+  } catch(e) {
+    if (!quiet) toast(e.message, true);
+  }
+}
+
+function handleCollabMessage(evt) {
+  let msg;
+  try { msg = JSON.parse(evt.data); } catch(e) { return; }
+
+  if (msg.type === 'joined') {
+    roomCode = msg.room || '';
+    roomRole = msg.role || 'guest';
+    updateIdentityUI();
+    if (joinedWaiter) {
+      clearTimeout(joinedWaiter.timer);
+      joinedWaiter.resolve(msg);
+      joinedWaiter = null;
+    }
+    return;
+  }
+
+  if (msg.type === 'state') {
+    segs = Array.isArray(msg.segs) ? msg.segs : [];
+    saveSession();
+    renderAll();
+    return;
+  }
+
+  if (msg.type === 'add' && msg.seg) {
+    if (!segs.some(s => String(s.id) === String(msg.seg.id))) addSegment(msg.seg, false);
+    return;
+  }
+
+  if (msg.type === 'clear') {
+    segs = [];
+    saveSession();
+    showEmpty();
+    clearInterim();
+    return;
+  }
+
+  if (msg.type === 'error') {
+    if (joinedWaiter) {
+      clearTimeout(joinedWaiter.timer);
+      joinedWaiter.reject(new Error(msg.message || 'Collaboration error.'));
+      joinedWaiter = null;
+    } else {
+      toast(msg.message || 'Collaboration error.', true);
+    }
+  }
+}
+
+function sendCollab(msg) {
+  if (ws && ws.readyState === WebSocket.OPEN && roomCode) {
+    ws.send(JSON.stringify(msg));
+  }
+}
+
+async function doShare() {
+  try {
+    if (!roomCode) await createRoom();
+    const url = shareUrl();
+    await copyText(url);
+    toast('Share link copied for room ' + roomCode + '.');
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+function doJoin() {
+  const code = prompt('Room code', pendingRoom || roomCode || '');
+  if (code) joinRoom(code, false);
+}
+
+function shareUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', roomCode);
+  if (collabServer) url.searchParams.set('server', collabServer);
+  url.searchParams.delete('name');
+  return url.toString();
+}
+
+async function copyText(text) {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const area = document.createElement('textarea');
+  area.value = text;
+  area.style.position = 'fixed';
+  area.style.left = '-9999px';
+  document.body.appendChild(area);
+  area.focus();
+  area.select();
+  document.execCommand('copy');
+  area.remove();
 }
 
 function toggleMic() { rec ? stopRec() : startRec(); }
@@ -500,11 +759,16 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
           .replace(/^["']|["']$/g, '').trim();
       }
     }
-    const seg = {id: Date.now(), lang: src, original: text, translated, time: nowTime()};
-    segs.push(seg);
-    saveSession();
-    appendSeg(seg);
-    scrollBoth();
+    const seg = {
+      id: Date.now() + '-' + speakerId,
+      speakerId,
+      speaker: speakerName || 'Speaker',
+      lang: src,
+      original: text,
+      translated,
+      time: nowTime()
+    };
+    addSegment(seg, true);
   } catch(e) {
     toast('Translation failed: ' + String(e.message).slice(0, 70), true);
   } finally {
@@ -518,6 +782,14 @@ async function doText() {
   if (!v) return;
   el.value = '';
   await translate(v);
+}
+
+function addSegment(seg, shouldBroadcast) {
+  segs.push(seg);
+  saveSession();
+  appendSeg(seg);
+  scrollBoth();
+  if (shouldBroadcast) sendCollab({type:'add', seg});
 }
 
 function renderAll() {
@@ -541,12 +813,12 @@ function appendSeg(seg) {
   if (ruEl.querySelector('.empty')) { ruEl.innerHTML = ''; enEl.innerHTML = ''; }
   const ruText = seg.lang === 'ru' ? seg.original : seg.translated;
   const enText = seg.lang === 'en' ? seg.original : seg.translated;
-  const label = (seg.lang === 'en' ? 'EN' : 'RU') + ' · ' + seg.time;
+  const label = (seg.speaker || 'Speaker') + ' · ' + (seg.lang === 'en' ? 'EN' : 'RU') + ' · ' + seg.time;
   function mkEl(text, cls) {
     const d = document.createElement('div');
     d.className = 'seg';
     d.dataset.id = seg.id;
-    d.innerHTML = '<div class="seg-meta">' + label + '</div>' +
+    d.innerHTML = '<div class="seg-meta">' + escapeHtml(label) + '</div>' +
       '<div class="seg-text ' + cls + '">' + spanWords(text) + '</div>';
     return d;
   }
@@ -557,12 +829,22 @@ function appendSeg(seg) {
 function spanWords(text) {
   if (!text) return '<em style="color:#3f3f46">—</em>';
   return text.split(/(\s+)/).map(tok => {
-    if (!tok.trim()) return tok;
+    if (!tok.trim()) return escapeHtml(tok);
     const w = tok.replace(/[^\wЀ-ӿ-]/g, '');
-    if (!w || w.length < 2) return tok;
-    const safe = w.replace(/'/g, "\\'");
-    return '<span class="word" onclick="lookup(\'' + safe + '\')">' + tok + '</span>';
+    if (!w || w.length < 2) return escapeHtml(tok);
+    const safe = encodeURIComponent(w).replace(/'/g, '%27');
+    return '<span class="word" onclick="lookup(decodeURIComponent(\'' + safe + '\'))">' + escapeHtml(tok) + '</span>';
   }).join('');
+}
+
+function escapeHtml(v) {
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  }[ch]));
 }
 
 function scrollBoth() {
@@ -591,12 +873,12 @@ Return ONLY valid JSON: {"word":"${word}","translation":"[${isRU?'English':'Russ
       .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
     const e = JSON.parse(raw);
     document.getElementById('dContent').innerHTML =
-      '<div class="dword">' + (e.word || word) + '</div>' +
-      (e.partOfSpeech ? '<div class="dpos">' + e.partOfSpeech + '</div>' : '') +
-      '<div class="dtrans">' + (e.translation || '—') + '</div>' +
-      '<div class="ddef">' + (e.definition || 'Definition unavailable.') + '</div>' +
+      '<div class="dword">' + escapeHtml(e.word || word) + '</div>' +
+      (e.partOfSpeech ? '<div class="dpos">' + escapeHtml(e.partOfSpeech) + '</div>' : '') +
+      '<div class="dtrans">' + escapeHtml(e.translation || '—') + '</div>' +
+      '<div class="ddef">' + escapeHtml(e.definition || 'Definition unavailable.') + '</div>' +
       (e.examples?.length ? '<div class="dexlbl">In Context</div>' +
-        e.examples.map(x => '<div class="dex">' + x + '</div>').join('') : '');
+        e.examples.map(x => '<div class="dex">' + escapeHtml(x) + '</div>').join('') : '');
   } catch(e) {
     document.getElementById('dContent').innerHTML = '<div class="dload">Lookup failed.</div>';
   }
@@ -611,7 +893,7 @@ function doExport() {
   const lines = segs.map(s => {
     const ru = s.lang === 'ru' ? s.original : s.translated;
     const en = s.lang === 'en' ? s.original : s.translated;
-    return '[' + s.time + '] ' + s.lang.toUpperCase() + ' speaker\nRU: ' + ru + '\nEN: ' + en;
+    return '[' + s.time + '] ' + (s.speaker || 'Speaker') + ' (' + s.lang.toUpperCase() + ')\nRU: ' + ru + '\nEN: ' + en;
   });
   const body = 'HYPATIA INTERPRETERPRO — Session Transcript\n' +
     new Date().toLocaleString() + '\n' + '─'.repeat(50) + '\n\n' + lines.join('\n\n');
@@ -629,6 +911,7 @@ function doClear() {
     localStorage.removeItem('hpro_session');
     showEmpty();
     clearInterim();
+    sendCollab({type:'clear'});
   }
 }
 
@@ -649,6 +932,10 @@ function toast(msg, err) {
 
 function nowTime() {
   return new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+}
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 </script>
 </body>
