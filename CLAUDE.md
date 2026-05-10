@@ -38,6 +38,7 @@ What works locally:
 - Speaker name, room state, Share/Join UI.
 - Local WebSocket collaboration path when a room server is running.
 - PWA manifest and service worker basics.
+- No-key demo mode for safe UI/classroom testing without Gemini API spend.
 
 What is not production-ready:
 
@@ -62,11 +63,19 @@ The local test servers were started here:
 
 `http://127.0.0.1:4173/?server=ws://127.0.0.1:18080`
 
+No-key demo URL:
+
+`http://127.0.0.1:4173/?demo=1&server=ws://127.0.0.1:18080`
+
+Public no-key demo URL after Netlify deploy:
+
+`https://hypatia-interpreterpro.netlify.app/?demo=1`
+
 If that page shows `DISPLAY NAME`, `NAME`, `SHARE`, and `JOIN`, it is the new app. If it only shows the older key screen without display-name/session controls, it is the wrong build or stale cache.
 
 ## Netlify State
 
-Netlify will keep showing the old app until the merged local work is pushed to GitHub `main` and the deploy completes.
+Netlify deploys from GitHub `main`. If production looks stale, wait for the deploy to finish and hard-refresh before assuming the code is missing.
 
 ## Ground Rules
 
@@ -83,4 +92,3 @@ Netlify will keep showing the old app until the merged local work is pushed to G
 - `TASKS.md`
 - `AGENTS.md`
 - `TESTING.md`
-

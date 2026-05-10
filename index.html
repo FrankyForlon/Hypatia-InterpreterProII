@@ -43,6 +43,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);
   border-radius:14px;font-size:0.7rem;font-weight:900;letter-spacing:0.18em;
   text-transform:uppercase;cursor:pointer;transition:background 0.15s}
 .go-btn:hover{background:var(--amber)}
+.demo-btn{width:100%;background:transparent;color:var(--amber);border:1px solid rgba(245,158,11,0.35);
+  padding:0.8rem 1rem;border-radius:12px;font-size:0.62rem;font-weight:900;
+  letter-spacing:0.14em;text-transform:uppercase;cursor:pointer;margin-top:0.65rem}
+.demo-btn:hover{background:var(--amber-bg);border-color:var(--amber)}
 .hint{margin-top:1rem;font-size:0.7rem;color:var(--muted);line-height:1.7}
 .hint a{color:var(--amber);text-decoration:none}
 #app{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
@@ -193,9 +197,11 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
     <div class="lbl">Display Name</div>
     <input class="key-in name-in" id="nameIn" type="text" placeholder="Mark, Anton, Interpreter..." autocomplete="name" spellcheck="false">
     <button class="go-btn" id="goBtn">Begin Session</button>
+    <button class="demo-btn" id="demoBtn">Use Demo Mode</button>
     <div class="hint">
       Free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a><br>
-      Stored only in this browser &mdash; never sent anywhere else.
+      Stored only in this browser &mdash; never sent anywhere else.<br>
+      Demo mode uses canned local responses and spends no API credits.
     </div>
   </div>
 </div>
@@ -298,6 +304,7 @@ let pendingRoom = (params.get('room') || '').toUpperCase().trim();
 let autoJoinAttempted = false;
 
 let key = '';
+let demoMode = params.get('demo') === '1' || localStorage.getItem('hpro_demo') === '1';
 let lang = 'en';
 let rec = false;
 let recObj = null;
@@ -322,8 +329,9 @@ const SILENCE_MS = 1400;
 document.addEventListener('DOMContentLoaded', () => {
   key = localStorage.getItem('hpro_key') || '';
   document.getElementById('nameIn').value = speakerName;
-  if (key) boot();
+  if (key || demoMode) boot();
   document.getElementById('goBtn').onclick = doSetup;
+  document.getElementById('demoBtn').onclick = doDemo;
   document.getElementById('ki').addEventListener('keydown', e => e.key === 'Enter' && doSetup());
   document.getElementById('nameIn').addEventListener('keydown', e => e.key === 'Enter' && doSetup());
   document.getElementById('micBtn').addEventListener('click', toggleMic);
@@ -349,8 +357,24 @@ function doSetup() {
     localStorage.setItem('hpro_name', speakerName);
   }
   key = v;
+  demoMode = false;
+  localStorage.removeItem('hpro_demo');
   localStorage.setItem('hpro_key', key);
   boot();
+}
+
+function doDemo() {
+  const n = cleanName(document.getElementById('nameIn').value);
+  if (n) {
+    speakerName = n;
+    localStorage.setItem('hpro_name', speakerName);
+  }
+  key = '';
+  demoMode = true;
+  localStorage.removeItem('hpro_key');
+  localStorage.setItem('hpro_demo', '1');
+  boot();
+  toast('Demo mode on. No Gemini key or credits used.');
 }
 
 function boot() {
@@ -367,7 +391,9 @@ function boot() {
 function doKey() {
   if (rec) stopRec();
   localStorage.removeItem('hpro_key');
+  localStorage.removeItem('hpro_demo');
   key = '';
+  demoMode = false;
   document.getElementById('setup').classList.remove('gone');
   document.getElementById('app').style.display = 'none';
   document.getElementById('ki').value = '';
@@ -725,38 +751,42 @@ Text: "${text.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
 Return ONLY valid JSON with no markdown: {"translated": "..."}`;
 
   try {
-    const res = await fetch(geminiUrl(key), {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        contents: [{parts: [{text: prompt}]}],
-        generationConfig: {responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 2048}
-      })
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const msg = (err.error && err.error.message) || ('HTTP ' + res.status);
-      if (res.status === 401 || res.status === 403) return toast('Invalid API key. Tap Key to re-enter.', true);
-      if (res.status === 429) return toast('Rate limit hit. Wait a moment.', true);
-      throw new Error(msg);
-    }
-    const data = await res.json();
-    // Strip markdown code fences Gemini occasionally adds despite application/json config
-    let raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
-      .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
     let translated = '';
-    try {
-      translated = (JSON.parse(raw).translated || '').trim();
-    } catch(e) {
-      // Fallback: extract value from "translated": "..." without letting the key leak
-      const m = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      if (m) {
-        translated = m[1].replace(/\\"/g, '"').trim();
-      } else {
-        translated = raw
-          .replace(/^\{/, '').replace(/\}$/, '')
-          .replace(/"?translated"?\s*:\s*/, '')
-          .replace(/^["']|["']$/g, '').trim();
+    if (demoMode) {
+      translated = demoTranslate(text, src);
+    } else {
+      const res = await fetch(geminiUrl(key), {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          contents: [{parts: [{text: prompt}]}],
+          generationConfig: {responseMimeType: 'application/json', temperature: 0.1, maxOutputTokens: 2048}
+        })
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = (err.error && err.error.message) || ('HTTP ' + res.status);
+        if (res.status === 401 || res.status === 403) return toast('Invalid API key. Tap Key to re-enter.', true);
+        if (res.status === 429) return toast('Rate limit hit. Wait a moment.', true);
+        throw new Error(msg);
+      }
+      const data = await res.json();
+      // Strip markdown code fences Gemini occasionally adds despite application/json config
+      let raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
+        .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
+      try {
+        translated = (JSON.parse(raw).translated || '').trim();
+      } catch(e) {
+        // Fallback: extract value from "translated": "..." without letting the key leak
+        const m = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (m) {
+          translated = m[1].replace(/\\"/g, '"').trim();
+        } else {
+          translated = raw
+            .replace(/^\{/, '').replace(/\}$/, '')
+            .replace(/"?translated"?\s*:\s*/, '')
+            .replace(/^["']|["']$/g, '').trim();
+        }
       }
     }
     const seg = {
@@ -774,6 +804,20 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
   } finally {
     setStatus(rec ? 'listening' : 'ready');
   }
+}
+
+function demoTranslate(text, src) {
+  const t = text.trim();
+  const low = t.toLowerCase();
+  if (src === 'en') {
+    if (low.includes('dialysis')) return 'Демо: диализный датчик стабилен и не протекает.';
+    if (low.includes('hello') || low.includes('hi')) return 'Демо: здравствуйте. Рад(а) познакомиться.';
+    if (low.includes('student')) return 'Демо: студент может ответить по-английски, а класс увидит русский перевод.';
+    return 'Демо-перевод на русский: ' + t;
+  }
+  if (/привет|здравств/i.test(t)) return 'Demo: hello. I am glad to meet you.';
+  if (/студент|ученик|курс/i.test(t)) return 'Demo: the student can answer and the class can see the English translation.';
+  return 'Demo English translation: ' + t;
 }
 
 async function doText() {
@@ -855,6 +899,10 @@ function scrollBoth() {
 async function lookup(word) {
   document.getElementById('dContent').innerHTML = '<div class="dload">Consulting medical database…</div>';
   document.getElementById('overlay').classList.add('open');
+  if (demoMode) {
+    showDemoLookup(word);
+    return;
+  }
   const isRU = /[Ѐ-ӿ]/.test(word);
   const prompt = `Medical dictionary entry for: "${word}"
 Language: ${isRU ? 'Russian' : 'English'}. Context: Biomedical engineering — cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors.
@@ -882,6 +930,46 @@ Return ONLY valid JSON: {"word":"${word}","translation":"[${isRU?'English':'Russ
   } catch(e) {
     document.getElementById('dContent').innerHTML = '<div class="dload">Lookup failed.</div>';
   }
+}
+
+function showDemoLookup(word) {
+  const entries = {
+    dialysis: {
+      word: 'dialysis',
+      translation: 'диализ',
+      partOfSpeech: 'noun',
+      definition: 'Demo entry: a clinical blood-filtration process used when kidney function is impaired.',
+      examples: ['The dialysis sensor is stable.', 'Диализный аппарат работает стабильно.']
+    },
+    student: {
+      word: 'student',
+      translation: 'студент / студентка',
+      partOfSpeech: 'noun',
+      definition: 'Demo entry: a learner enrolled in a class or course.',
+      examples: ['The student answers in English.', 'Студент отвечает по-русски.']
+    },
+    course: {
+      word: 'course',
+      translation: 'курс',
+      partOfSpeech: 'noun',
+      definition: 'Demo entry: a structured sequence of lessons on a subject.',
+      examples: ['This Russian history course meets once a week.']
+    }
+  };
+  const entry = entries[word.toLowerCase()] || {
+    word,
+    translation: 'demo translation',
+    partOfSpeech: 'term',
+    definition: 'Demo glossary entry. Add a Gemini key later for live contextual definitions.',
+    examples: ['Demo mode lets you test the interface without spending API credits.']
+  };
+  document.getElementById('dContent').innerHTML =
+    '<div class="dword">' + escapeHtml(entry.word) + '</div>' +
+    '<div class="dpos">' + escapeHtml(entry.partOfSpeech) + '</div>' +
+    '<div class="dtrans">' + escapeHtml(entry.translation) + '</div>' +
+    '<div class="ddef">' + escapeHtml(entry.definition) + '</div>' +
+    '<div class="dexlbl">In Context</div>' +
+    entry.examples.map(x => '<div class="dex">' + escapeHtml(x) + '</div>').join('');
 }
 
 function overlayClick(e) { if (e.target === document.getElementById('overlay')) closeDrawer(); }

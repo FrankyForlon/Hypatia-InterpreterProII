@@ -13,8 +13,9 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Add PWA manifest link and safer service worker.
 - [x] Add project handoff docs for Codex/Claude coordination.
 - [x] Verify local app shell and two-client mocked room flow.
-- [ ] Push merged work to GitHub main.
-- [ ] Confirm Netlify deploy shows the new `DISPLAY NAME`, `SHARE`, and `JOIN` UI.
+- [x] Push merged work to GitHub main.
+- [x] Confirm Netlify deploy shows the new `DISPLAY NAME`, `SHARE`, and `JOIN` UI.
+- [x] Add no-key demo mode for safe UI/classroom testing.
 
 ## Next Engineering Decisions
 
@@ -22,7 +23,7 @@ Updated by agents after completing work. Keep this short and current.
 - [ ] Move Gemini calls behind a server endpoint before any real public beta.
 - [ ] Add edit-and-retranslate for individual transcript segments.
 - [ ] Add CSV glossary upload for session terminology.
-- [ ] Add a simple no-key demo/mock mode for testing the UI without spending API credits.
+- [x] Add a simple no-key demo/mock mode for testing the UI without spending API credits.
 
 ## Backlog
 
@@ -43,4 +44,3 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Strip Gemini markdown fences before JSON parsing.
 - [x] Add clinical glossary drawer.
 - [x] Export transcript as `.txt`.
-
