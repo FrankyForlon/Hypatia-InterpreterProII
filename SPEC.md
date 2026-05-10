@@ -1,24 +1,64 @@
-# Hypatia InterpreterPro Spec
+# Hypatia InterpreterPro - Product Spec
 
-## Beta Target
+Single source of product truth. All agents read this before touching code.
 
-Hypatia's first product target is the University of Utah medical engineering conference: a mobile-first Russian-English interpreter that creates a shared, editable bilingual transcript for two people in a high-stakes technical conversation.
+## What It Is
 
-The beta should feel like a focused professional instrument, not a generic meeting app. The source transcript is the record; translation, glossary, export, and sharing are views over that record.
+Hypatia is a real-time multilingual conversation workspace. Two or more people speak or type in their native languages; Hypatia creates parallel transcripts, translates them, lets people inspect terms, and eventually turns the conversation into a durable record.
 
-## Conference-Critical Scope
+The current wedge is not "all languages for everyone." The near-term wedge is a simple shared transcript/translation room that works well enough to test with real people.
 
-1. Two people can join the same live transcript by URL or room code.
-2. Each segment records speaker name, source language, source text, translation, and display time.
-3. Manual input always works, even when microphone capture fails.
-4. Browser speech recognition remains the current fast beta path.
-5. Export produces a clean bilingual transcript with speaker attribution.
-6. The glossary/dictionary layer remains lightweight and technical.
+## Current State
 
-## Not Yet
+- Single-file standalone app: `index.html`.
+- Gemini 2.5 Flash translation and glossary lookup through a user-provided browser key.
+- Web Speech API STT for Chrome/Edge.
+- Manual type-to-send fallback.
+- Silence buffer and Android Chrome cumulative-result dedup.
+- Split-screen bilingual display: Russian top, English bottom.
+- Tapable word lookup drawer.
+- Export transcript as `.txt`.
+- Local persistence through `localStorage`.
+- Speaker name prompt, speaker labels, room state strip, and Share/Join UI.
+- Local WebSocket collaboration path works when the room server is running.
+- PWA manifest and service worker are wired.
 
-HIPAA production claims, billing, account management, full audio retention, many-language expansion, app-store packaging, and enterprise administration are intentionally out of scope for the Utah beta.
+## Not Production-Ready
 
-## Product North Star
+- The live Netlify site may lag until local commits are pushed and deployed.
+- Gemini API calls still happen from the browser. This is acceptable for local beta testing, not production.
+- Public room sharing needs a deployed `wss://` collaboration backend or a different sync layer.
+- There is no account system, durable database, billing, HIPAA posture, or edit-and-retranslate loop yet.
 
-Hypatia is not only a translator. It is a specialist interpreter and transcript workspace for technical conversations where accuracy, correction, and durable records matter.
+## Target Users
+
+1. Early technical beta testers who can tolerate rough edges.
+2. Education / ELL contexts where low-friction bilingual conversation matters.
+3. Medical / biomedical and clinical research teams once compliance and accuracy hardening exist.
+
+## Core UX Principles
+
+- Zero install: open a URL and speak or type.
+- Both people see both languages simultaneously.
+- The original transcript is the record of truth; translation is a view.
+- Every session should become a usable, exportable artifact.
+- Manual input must always remain available when mic capture fails.
+
+## Non-Goals For Now
+
+- Full HIPAA claims.
+- Billing and subscriptions.
+- App Store packaging.
+- More than two active working languages per session.
+- Voice synthesis.
+- Autonomous cloud-agent workflows.
+
+## Backend Decision Still Open
+
+The root app currently has local WebSocket room sharing. Firestore remains a possible future sync layer. Do not assume either is the final production architecture until a short architecture decision record compares:
+
+- WebSocket room server
+- Firestore
+- Netlify/Vercel serverless or edge functions
+- A managed realtime service
+

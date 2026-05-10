@@ -1,21 +1,46 @@
-# Hypatia Active Tasks
+# Hypatia InterpreterPro - Task Queue
 
-## Now: Utah Conference Beta
+Updated by agents after completing work. Keep this short and current.
 
-- [x] Keep a clean checkout on `main`.
-- [x] Preserve the root `index.html` as the deployed app surface.
-- [x] Wire root app to a shareable two-person room.
-- [x] Add speaker names to live segments and exports.
-- [ ] Keep manual input as the fallback path for noisy rooms.
-- [x] Verify the deployed-style app with browser automation.
+## Immediate
 
-## Next
+- [x] Revoke/delete exposed Gemini keys and GitHub classic tokens.
+- [x] Replace local unredacted Word docs with redacted versions.
+- [x] Keep a clean GitHub checkout on `main`.
+- [x] Preserve root `index.html` as the deployable app surface.
+- [x] Add speaker name prompt and speaker labels.
+- [x] Add Share/Join UI and local WebSocket room sync.
+- [x] Add PWA manifest link and safer service worker.
+- [x] Add project handoff docs for Codex/Claude coordination.
+- [x] Verify local app shell and two-client mocked room flow.
+- [ ] Push merged work to GitHub main.
+- [ ] Confirm Netlify deploy shows the new `DISPLAY NAME`, `SHARE`, and `JOIN` UI.
 
+## Next Engineering Decisions
+
+- [ ] Decide production sync layer: WebSocket room server vs Firestore vs serverless realtime.
+- [ ] Move Gemini calls behind a server endpoint before any real public beta.
 - [ ] Add edit-and-retranslate for individual transcript segments.
-- [ ] Add CSV glossary upload for conference terminology.
-- [ ] Move Gemini calls behind a server endpoint before production use.
-- [ ] Decide whether WebSocket rooms or Firestore becomes the durable collaboration backend.
+- [ ] Add CSV glossary upload for session terminology.
+- [ ] Add a simple no-key demo/mock mode for testing the UI without spending API credits.
 
-## Agent Rule
+## Backlog
 
-Claude and Codex should both read `SPEC.md` and this file before making product changes. Prefer small, testable changes against the root app unless a task explicitly moves the project to a framework build.
+- [ ] Audio timestamps on each segment.
+- [ ] Durable transcript storage.
+- [ ] User accounts.
+- [ ] Export to DOCX/PDF/Markdown.
+- [ ] Education/ELL landing page and outreach notes.
+- [ ] HIPAA/security architecture review.
+- [ ] Billing and subscription model.
+
+## Completed Earlier
+
+- [x] Migrate from Kimi to Gemini 2.5 Flash.
+- [x] Fix Android Chrome cumulative STT duplication.
+- [x] Add silence buffer for speech batching.
+- [x] Fix translation truncation with larger max output.
+- [x] Strip Gemini markdown fences before JSON parsing.
+- [x] Add clinical glossary drawer.
+- [x] Export transcript as `.txt`.
+
