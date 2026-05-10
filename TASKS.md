@@ -20,6 +20,7 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Restrict hosted Gemini endpoint origins and remove the `?api=` override.
 - [x] Remove public `?server=` WebSocket override to prevent transcript exfiltration links.
 - [x] Add translator profiles and context prompt for classroom/medical/travel/literal modes.
+- [x] Add cleaned source transcript display with deterministic punctuation/capitalization polish.
 
 ## Next Engineering Decisions
 

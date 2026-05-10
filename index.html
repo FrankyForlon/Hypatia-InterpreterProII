@@ -814,27 +814,34 @@ async function translate(text, srcOverride) {
   const srcName = src === 'en' ? 'English' : 'Russian';
   const tgtName = tgt === 'en' ? 'English' : 'Russian';
 
-  const prompt = `You are a simultaneous interpreter at a biomedical engineering conference (University of Utah, 2026). Participants include Russian-speaking medical engineers and doctors from CIS countries, and English-speaking American researchers. Domain: cardiology, bioelectronics, dialysis, ECMO, nanotech, biosensors, medical devices.
+  const profile = TRANSLATOR_PROFILES[translatorProfile] || TRANSLATOR_PROFILES.classroom;
+  const sessionInfo = sessionContext || profile.domain;
+  const prompt = `You are ${profile.label}, a simultaneous interpreter.
+
+Domain: ${profile.domain}
+Style: ${profile.style}
+Session context: ${sessionInfo}
 
 Translate the following ${srcName} text to ${tgtName}.
 
 STRICT RULES:
 1. Preserve exact logical polarity. Negatives must stay negative. Never flip meaning.
-2. Use professional medical and engineering terminology.
-3. Output natural spoken language — live dialogue, not formal prose.
-4. No explanations, brackets, translator notes, or caveats.
-5. Translate the COMPLETE text. Do not truncate or summarize.
+2. Use the domain, style, and session context above.
+3. Clean the source transcript only for punctuation, capitalization, contractions, and obvious speech-recognition formatting. Do not change meaning.
+4. Output natural spoken language for live dialogue.
+5. No explanations, brackets, translator notes, or caveats.
+6. Translate the COMPLETE text. Do not truncate or summarize.
 
 Text: "${text.replace(/"/g, '\\"').replace(/\n/g, ' ')}"
 
-Return ONLY valid JSON with no markdown: {"translated": "..."}`;
+Return ONLY valid JSON with no markdown: {"cleanOriginal":"...","translated":"..."}`;
 
   try {
     let translated = '';
     let cleanOriginal = text;
     if (demoMode) {
       translated = demoTranslate(text, src);
-      cleanOriginal = demoCleanOriginal(text);
+      cleanOriginal = demoCleanOriginal(text, src);
     } else if (!key) {
       const data = await callHostedGemini({
         type: 'translate',
@@ -844,7 +851,7 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
         context: sessionContext
       });
       translated = (data.translated || '').trim();
-      cleanOriginal = (data.cleanOriginal || text).trim();
+      cleanOriginal = cleanTranscript(data.cleanOriginal, text, src);
     } else {
       const res = await fetch(geminiUrl(key), {
         method: 'POST',
@@ -868,7 +875,7 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
       try {
         const parsed = JSON.parse(raw);
         translated = (parsed.translated || '').trim();
-        cleanOriginal = (parsed.cleanOriginal || text).trim();
+        cleanOriginal = cleanTranscript(parsed.cleanOriginal, text, src);
       } catch(e) {
         // Fallback: extract value from "translated": "..." without letting the key leak
         const m = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
@@ -882,7 +889,7 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
         }
       }
     }
-    seg.cleanOriginal = cleanOriginal || text;
+    seg.cleanOriginal = cleanTranscript(cleanOriginal, text, src) || text;
     seg.translated = translated || '—';
     seg.pending = false;
     saveSession();
@@ -913,10 +920,34 @@ function demoTranslate(text, src) {
   return 'Demo English translation: ' + t;
 }
 
-function demoCleanOriginal(text) {
-  const t = text.trim();
+function demoCleanOriginal(text, src) {
+  return cleanTranscript(text, text, src);
+}
+
+function cleanTranscript(value, fallback, src) {
+  let t = String(value || fallback || '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replace(/\s+([?.!,;:])/g, '$1')
+    .replace(/\bhows\b/gi, "how's")
+    .replace(/\bwhats\b/gi, "what's")
+    .replace(/\bi\b/g, 'I');
+
   if (!t) return '';
-  return t.charAt(0).toUpperCase() + t.slice(1).replace(/\s+([?.!,])/g, '$1');
+
+  const firstLetter = t.search(/[A-Za-z\u0400-\u04FF]/);
+  if (firstLetter >= 0) {
+    t = t.slice(0, firstLetter) + t.charAt(firstLetter).toUpperCase() + t.slice(firstLetter + 1);
+  }
+
+  if (!/[.!?)"'\]]$/.test(t)) {
+    const questionish = src === 'en'
+      ? /(^|\b)(who|what|when|where|why|how|how's|how is|what's|what is|are you|do you|can you|could you|would you|should we|ready)\b/i.test(t)
+      : /(\u043a\u0442\u043e|\u0447\u0442\u043e|\u0433\u0434\u0435|\u043a\u043e\u0433\u0434\u0430|\u043f\u043e\u0447\u0435\u043c\u0443|\u0437\u0430\u0447\u0435\u043c|\u043a\u0430\u043a|\u043c\u043e\u0436\u043d\u043e|\u0433\u043e\u0442\u043e\u0432)/i.test(t);
+    t += questionish ? '?' : '.';
+  }
+
+  return t.slice(0, 4000);
 }
 
 async function callHostedGemini(payload) {

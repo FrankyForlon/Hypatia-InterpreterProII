@@ -170,9 +170,10 @@ STRICT RULES:
 1. Preserve exact logical polarity. Negatives must stay negative. Never flip meaning.
 2. Use the domain, style, and session context above.
 3. Clean the source transcript only for punctuation, capitalization, and obvious speech-recognition formatting. Do not change meaning.
-4. Output natural spoken language for live dialogue.
-5. No explanations, brackets, translator notes, or caveats.
-6. Translate the complete text. Do not truncate or summarize.
+4. Make cleanOriginal read like a clean transcript sentence: fix capitalization, contractions, and sentence-ending punctuation when the intent is clear.
+5. Output natural spoken language for live dialogue.
+6. No explanations, brackets, translator notes, or caveats.
+7. Translate the complete text. Do not truncate or summarize.
 
 Text: "${escapePromptText(text)}"
 
@@ -187,9 +188,37 @@ Return only valid JSON with no markdown: {"cleanOriginal":"...","translated":"..
   const translated = String(parsed.translated || "").trim();
   if (!translated) throw statusError("Gemini returned an empty translation.", 502);
   return {
-    cleanOriginal: String(parsed.cleanOriginal || text).trim().slice(0, MAX_TEXT_LENGTH),
+    cleanOriginal: polishCleanOriginal(parsed.cleanOriginal, text, src),
     translated,
   };
+}
+
+function polishCleanOriginal(value, fallback, src) {
+  let text = String(value || fallback || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/\s+([?.!,;:])/g, "$1")
+    .replace(/\bhows\b/gi, "how's")
+    .replace(/\bwhats\b/gi, "what's")
+    .replace(/\bi\b/g, "I");
+
+  if (!text) return "";
+
+  const firstLetter = text.search(/[A-Za-z\u0400-\u04FF]/);
+  if (firstLetter >= 0) {
+    text = text.slice(0, firstLetter)
+      + text.charAt(firstLetter).toUpperCase()
+      + text.slice(firstLetter + 1);
+  }
+
+  if (!/[.!?)"'\]]$/.test(text)) {
+    const questionish = src === "en"
+      ? /(^|\b)(who|what|when|where|why|how|how's|how is|what's|what is|are you|do you|can you|could you|would you|should we|ready)\b/i.test(text)
+      : /(\u043a\u0442\u043e|\u0447\u0442\u043e|\u0433\u0434\u0435|\u043a\u043e\u0433\u0434\u0430|\u043f\u043e\u0447\u0435\u043c\u0443|\u0437\u0430\u0447\u0435\u043c|\u043a\u0430\u043a|\u043c\u043e\u0436\u043d\u043e|\u0433\u043e\u0442\u043e\u0432)/i.test(text);
+    text += questionish ? "?" : ".";
+  }
+
+  return text.slice(0, MAX_TEXT_LENGTH);
 }
 
 async function lookup(apiKey, word, profileKey, context) {

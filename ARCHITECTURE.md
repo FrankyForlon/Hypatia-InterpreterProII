@@ -105,7 +105,7 @@ Future fields should be added deliberately:
 ```
 
 The original transcript is the record of truth. `translated` is a view that can be regenerated.
-`cleanOriginal` is a lightly edited display view for punctuation and capitalization; it should not replace `original` as the raw record.
+`cleanOriginal` is a lightly edited display view for punctuation, capitalization, contractions, and obvious ASR formatting; it should not replace `original` as the raw record.
 
 ## Backend Decision Record Needed
 

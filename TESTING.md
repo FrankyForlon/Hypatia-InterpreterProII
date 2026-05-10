@@ -37,7 +37,7 @@ If you leave the key field blank and click `Begin Session`, Hypatia uses the hos
 4. For a temporary local BYO-key test, enter your Gemini API key and a display name, then click `Begin Session`.
 5. Confirm the top strip shows your name and `SOLO`.
 6. Type an English sentence in the bottom bar and press Enter.
-7. Confirm the English feed shows your original sentence and the Russian feed shows the translation.
+7. Confirm the English feed appears immediately, then gets lightly cleaned for capitalization, punctuation, and contractions while the Russian feed shows the translation.
 8. Tap a word such as `dialysis` and confirm the glossary drawer opens.
 9. Click `Export` and confirm a text transcript downloads.
 
