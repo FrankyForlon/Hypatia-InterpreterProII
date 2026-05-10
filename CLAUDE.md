@@ -45,7 +45,7 @@ What works locally:
 What is not production-ready:
 
 - Netlify still needs `GEMINI_API_KEY` set before hosted live translation works.
-- User-provided browser keys still exist as a temporary fallback for local testing.
+- User-provided browser keys exist only as a temporary fallback for local testing.
 - Room sharing needs a deployed public `wss://` room server or a different sync layer.
 - There is no account system, durable database, billing, HIPAA posture, or edit-and-retranslate loop yet.
 

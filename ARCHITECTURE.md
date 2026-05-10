@@ -13,7 +13,7 @@ Browser (Chrome/Edge)
   -> optional WebSocket room broadcast
 ```
 
-The app is currently a standalone `index.html` with no frontend build step. Hosted Gemini calls run through a Netlify Function at `/api/gemini` so the production API key can live in Netlify environment variables instead of the browser. A user-provided browser key still exists as a temporary local fallback.
+The app is currently a standalone `index.html` with no frontend build step. Hosted Gemini calls run through a Netlify Function at `/api/gemini` so the production API key can live in Netlify environment variables instead of the browser. A user-provided browser key exists only as a temporary local fallback.
 
 ## Current Gemini Shape
 

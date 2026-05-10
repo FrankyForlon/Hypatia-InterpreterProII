@@ -27,14 +27,14 @@ The `server` URL parameter is local-development only and is ignored by the publi
 If you see `DISPLAY NAME`, `NAME`, `SHARE`, and `JOIN`, you are looking at the new app.
 If you do not see those controls, you are looking at the old app.
 If you click `Use Demo Mode`, Hypatia uses canned local responses and spends no Gemini API credits.
-If you leave the key field blank and click `Begin Session`, Hypatia uses the hosted `/api/gemini` endpoint. That path only works after Netlify has a `GEMINI_API_KEY` environment variable.
+If you leave the key field blank and click `Begin Session`, Hypatia uses the hosted `/api/gemini` endpoint. That path only works after Netlify has a `GEMINI_API_KEY` environment variable. The public Netlify app ignores old browser-stored Gemini keys; BYO keys are a local testing fallback only.
 
 ## Basic Test
 
 1. Open the local test URL in Chrome or Edge.
 2. For a safe UI test, enter a display name and click `Use Demo Mode`.
 3. For a hosted translation test, leave the key blank, enter a display name, then click `Begin Session`.
-4. For a temporary BYO-key test, enter your Gemini API key and a display name, then click `Begin Session`.
+4. For a temporary local BYO-key test, enter your Gemini API key and a display name, then click `Begin Session`.
 5. Confirm the top strip shows your name and `SOLO`.
 6. Type an English sentence in the bottom bar and press Enter.
 7. Confirm the English feed shows your original sentence and the Russian feed shows the translation.

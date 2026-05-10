@@ -199,8 +199,8 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
     <button class="go-btn" id="goBtn">Begin Session</button>
     <button class="demo-btn" id="demoBtn">Use Demo Mode</button>
     <div class="hint">
-      Leave blank to use the hosted server endpoint when configured.<br>
-      BYO keys stay in this browser and are used only for direct Gemini requests.<br>
+      Leave blank to use Hypatia's hosted translation endpoint.<br>
+      BYO keys are a local testing fallback only.<br>
       Demo mode uses canned local responses and spends no API credits.
     </div>
   </div>
@@ -329,7 +329,8 @@ let silenceTimer = null;
 const SILENCE_MS = 1400;
 
 document.addEventListener('DOMContentLoaded', () => {
-  key = localStorage.getItem('hpro_key') || '';
+  key = IS_LOCAL_DEV ? (localStorage.getItem('hpro_key') || '') : '';
+  if (!IS_LOCAL_DEV) localStorage.removeItem('hpro_key');
   document.getElementById('nameIn').value = speakerName;
   if (key || demoMode) boot();
   document.getElementById('goBtn').onclick = doSetup;
@@ -351,6 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function doSetup() {
   const v = document.getElementById('ki').value.trim();
+  if (v && !IS_LOCAL_DEV) return toast('Hosted Hypatia uses the server key. Leave the key field blank.', true);
   if (v && !v.startsWith('AIza')) return toast('Key should start with AIza...', true);
   const n = cleanName(document.getElementById('nameIn').value);
   if (n) {
@@ -840,7 +842,7 @@ function demoTranslate(text, src) {
 }
 
 async function callHostedGemini(payload) {
-  if (!params.has('api') && ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port === '4173') {
+  if (IS_LOCAL_DEV && location.port === '4173') {
     throw new Error('Hosted Gemini endpoint is unavailable locally. Use Demo Mode or run Netlify Dev.');
   }
   const res = await fetch(HOSTED_GEMINI_URL, {
