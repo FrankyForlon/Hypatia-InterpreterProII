@@ -17,6 +17,7 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Confirm Netlify deploy shows the new `DISPLAY NAME`, `SHARE`, and `JOIN` UI.
 - [x] Add no-key demo mode for safe UI/classroom testing.
 - [x] Add hosted `/api/gemini` endpoint so production can hide the Gemini key.
+- [x] Restrict hosted Gemini endpoint origins and remove the `?api=` override.
 
 ## Next Engineering Decisions
 

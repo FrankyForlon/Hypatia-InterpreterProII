@@ -1,61 +1,69 @@
 const MODEL = "gemini-2.5-flash";
 const MAX_TEXT_LENGTH = 4000;
 const MAX_WORD_LENGTH = 80;
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://hypatia-interpreterpro.netlify.app",
+  "http://localhost:8888",
+  "http://127.0.0.1:8888",
+];
 
-const jsonHeaders = {
+const baseJsonHeaders = {
   "content-type": "application/json; charset=utf-8",
   "cache-control": "no-store",
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "POST, OPTIONS",
-  "access-control-allow-headers": "content-type",
+  "vary": "origin",
 };
 
 export default async function gemini(req) {
+  const origin = req.headers.get("origin") || "";
+  if (!isAllowedOrigin(origin)) {
+    return json({ error: "ORIGIN_NOT_ALLOWED" }, 403, origin);
+  }
+
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: jsonHeaders });
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
   }
 
   if (req.method !== "POST") {
-    return json({ error: "METHOD_NOT_ALLOWED" }, 405);
+    return json({ error: "METHOD_NOT_ALLOWED" }, 405, origin);
   }
 
   const apiKey = getEnv("GEMINI_API_KEY") || getEnv("GOOGLE_GEMINI_API_KEY");
   if (!apiKey) {
-    return json({ error: "SERVER_GEMINI_KEY_MISSING" }, 503);
+    return json({ error: "SERVER_GEMINI_KEY_MISSING" }, 503, origin);
   }
 
   let body;
   try {
     body = await req.json();
   } catch {
-    return json({ error: "BAD_JSON" }, 400);
+    return json({ error: "BAD_JSON" }, 400, origin);
   }
 
   try {
     if (body.type === "translate") {
       const src = body.src === "ru" ? "ru" : "en";
       const text = cleanText(body.text, MAX_TEXT_LENGTH);
-      if (!text) return json({ error: "TEXT_REQUIRED" }, 400);
+      if (!text) return json({ error: "TEXT_REQUIRED" }, 400, origin);
 
       const translated = await translate(apiKey, text, src);
-      return json({ translated });
+      return json({ translated }, 200, origin);
     }
 
     if (body.type === "lookup") {
       const word = cleanText(body.word, MAX_WORD_LENGTH);
-      if (!word) return json({ error: "WORD_REQUIRED" }, 400);
+      if (!word) return json({ error: "WORD_REQUIRED" }, 400, origin);
 
       const entry = await lookup(apiKey, word);
-      return json(entry);
+      return json(entry, 200, origin);
     }
 
-    return json({ error: "UNKNOWN_TYPE" }, 400);
+    return json({ error: "UNKNOWN_TYPE" }, 400, origin);
   } catch (error) {
     const status = error.status || 502;
     return json({
       error: "GEMINI_REQUEST_FAILED",
       message: String(error.message || "Gemini request failed.").slice(0, 160),
-    }, status);
+    }, status, origin);
   }
 }
 
@@ -68,11 +76,44 @@ function getEnv(name) {
   return globalThis.Netlify?.env?.get?.(name) || "";
 }
 
-function json(payload, status = 200) {
+function json(payload, status = 200, origin = "") {
   return new Response(JSON.stringify(payload), {
     status,
-    headers: jsonHeaders,
+    headers: corsHeaders(origin),
   });
+}
+
+function corsHeaders(origin) {
+  const headers = {
+    ...baseJsonHeaders,
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "content-type",
+  };
+  if (isAllowedOrigin(origin)) {
+    headers["access-control-allow-origin"] = origin;
+  }
+  return headers;
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return false;
+  let normalized;
+  try {
+    normalized = new URL(origin).origin;
+  } catch {
+    return false;
+  }
+
+  return allowedOrigins().has(normalized);
+}
+
+function allowedOrigins() {
+  const configured = getEnv("ALLOWED_ORIGINS")
+    .split(",")
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
+  return new Set([...DEFAULT_ALLOWED_ORIGINS, ...configured]);
 }
 
 function cleanText(value, maxLength) {

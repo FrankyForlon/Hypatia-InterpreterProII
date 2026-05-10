@@ -21,6 +21,7 @@ The app is currently a standalone `index.html` with no frontend build step. Host
 Browser
   -> POST /api/gemini
   -> netlify/functions/gemini.ts
+  -> origin allowlist check
   -> Gemini REST API using GEMINI_API_KEY
   -> JSON response back to browser
 ```
@@ -33,6 +34,10 @@ Supported actions:
 Required Netlify environment variable:
 
 - `GEMINI_API_KEY`
+
+Optional Netlify environment variable:
+
+- `ALLOWED_ORIGINS` as a comma-separated list if future custom domains need access.
 
 ## Current Local Collaboration Shape
 
@@ -121,6 +126,8 @@ Decision criteria:
 ├── index.html          # canonical app
 ├── manifest.json       # PWA metadata
 ├── sw.js               # service worker
+├── netlify.toml        # Netlify publish/functions config
+├── netlify/functions/  # hosted server endpoints
 ├── SPEC.md             # product truth
 ├── ARCHITECTURE.md     # this file
 ├── TASKS.md            # active work queue
@@ -136,4 +143,5 @@ Decision criteria:
 - No public production release that depends on a private local WebSocket server.
 - Browser Gemini keys are acceptable for local fallback testing only.
 - Production Gemini keys must live in Netlify environment variables.
+- Hosted Gemini endpoint must stay restricted to trusted origins; do not reintroduce URL-based API endpoint overrides.
 - Manual typed input must always work, even if mic/STT fails.

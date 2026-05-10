@@ -54,6 +54,10 @@ Required Netlify environment variable:
 
 `GEMINI_API_KEY`
 
+Optional Netlify environment variable for future custom domains:
+
+`ALLOWED_ORIGINS`
+
 Local static testing on port `4173` does not run Netlify Functions. Use demo mode locally unless you are running Netlify Dev or testing the deployed site.
 
 ## Two-Window Room Test

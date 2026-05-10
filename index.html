@@ -298,7 +298,7 @@ const geminiUrl = k =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 
 const params = new URLSearchParams(window.location.search);
-const HOSTED_GEMINI_URL = params.get('api') || '/api/gemini';
+const HOSTED_GEMINI_URL = '/api/gemini';
 const DEFAULT_COLLAB_SERVER = location.protocol === 'https:' ? '' : 'ws://localhost:8080';
 let collabServer = normalizeWsUrl(params.get('server') || localStorage.getItem('hpro_collab_server') || DEFAULT_COLLAB_SERVER);
 let pendingRoom = (params.get('room') || '').toUpperCase().trim();
