@@ -192,15 +192,15 @@ footer{flex-shrink:0;padding:0.625rem 1rem;
     <div class="logo-big">H</div>
     <h1>Hypatia</h1>
     <div class="sub">InterpreterPro &middot; 1.0</div>
-    <div class="lbl">Gemini API Key</div>
-    <input class="key-in" id="ki" type="password" placeholder="AIza..." autocomplete="off" spellcheck="false">
+    <div class="lbl">Gemini API Key (Optional)</div>
+    <input class="key-in" id="ki" type="password" placeholder="Leave blank for hosted endpoint" autocomplete="off" spellcheck="false">
     <div class="lbl">Display Name</div>
     <input class="key-in name-in" id="nameIn" type="text" placeholder="Mark, Anton, Interpreter..." autocomplete="name" spellcheck="false">
     <button class="go-btn" id="goBtn">Begin Session</button>
     <button class="demo-btn" id="demoBtn">Use Demo Mode</button>
     <div class="hint">
-      Free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a><br>
-      Stored only in this browser &mdash; never sent anywhere else.<br>
+      Leave blank to use the hosted server endpoint when configured.<br>
+      BYO keys stay in this browser and are used only for direct Gemini requests.<br>
       Demo mode uses canned local responses and spends no API credits.
     </div>
   </div>
@@ -298,6 +298,7 @@ const geminiUrl = k =>
   `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${k}`;
 
 const params = new URLSearchParams(window.location.search);
+const HOSTED_GEMINI_URL = params.get('api') || '/api/gemini';
 const DEFAULT_COLLAB_SERVER = location.protocol === 'https:' ? '' : 'ws://localhost:8080';
 let collabServer = normalizeWsUrl(params.get('server') || localStorage.getItem('hpro_collab_server') || DEFAULT_COLLAB_SERVER);
 let pendingRoom = (params.get('room') || '').toUpperCase().trim();
@@ -349,8 +350,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function doSetup() {
   const v = document.getElementById('ki').value.trim();
-  if (!v) return toast('Enter your Gemini API key.', true);
-  if (!v.startsWith('AIza')) return toast('Key should start with AIza...', true);
+  if (v && !v.startsWith('AIza')) return toast('Key should start with AIza...', true);
   const n = cleanName(document.getElementById('nameIn').value);
   if (n) {
     speakerName = n;
@@ -359,8 +359,13 @@ function doSetup() {
   key = v;
   demoMode = false;
   localStorage.removeItem('hpro_demo');
-  localStorage.setItem('hpro_key', key);
+  if (key) {
+    localStorage.setItem('hpro_key', key);
+  } else {
+    localStorage.removeItem('hpro_key');
+  }
   boot();
+  if (!key) toast('Hosted Gemini endpoint selected. No browser key stored.');
 }
 
 function doDemo() {
@@ -754,6 +759,9 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
     let translated = '';
     if (demoMode) {
       translated = demoTranslate(text, src);
+    } else if (!key) {
+      const data = await callHostedGemini({type: 'translate', text, src});
+      translated = (data.translated || '').trim();
     } else {
       const res = await fetch(geminiUrl(key), {
         method: 'POST',
@@ -800,7 +808,7 @@ Return ONLY valid JSON with no markdown: {"translated": "..."}`;
     };
     addSegment(seg, true);
   } catch(e) {
-    toast('Translation failed: ' + String(e.message).slice(0, 70), true);
+    toast('Translation failed: ' + String(e.message).slice(0, 140), true);
   } finally {
     setStatus(rec ? 'listening' : 'ready');
   }
@@ -818,6 +826,32 @@ function demoTranslate(text, src) {
   if (/привет|здравств/i.test(t)) return 'Demo: hello. I am glad to meet you.';
   if (/студент|ученик|курс/i.test(t)) return 'Demo: the student can answer and the class can see the English translation.';
   return 'Demo English translation: ' + t;
+}
+
+async function callHostedGemini(payload) {
+  if (!params.has('api') && ['127.0.0.1', 'localhost'].includes(location.hostname) && location.port === '4173') {
+    throw new Error('Hosted Gemini endpoint is unavailable locally. Use Demo Mode or run Netlify Dev.');
+  }
+  const res = await fetch(HOSTED_GEMINI_URL, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const code = data.error || '';
+    if (code === 'SERVER_GEMINI_KEY_MISSING') {
+      throw new Error('Hosted Gemini key is not configured yet. Use Demo Mode for now.');
+    }
+    if (code === 'METHOD_NOT_ALLOWED' || code === 'UNKNOWN_TYPE') {
+      throw new Error('Hosted Gemini endpoint rejected the request.');
+    }
+    if (res.status === 404 || res.status === 501) {
+      throw new Error('Hosted Gemini endpoint is unavailable. Use Demo Mode or enter a key.');
+    }
+    throw new Error(data.message || ('Hosted Gemini endpoint failed: HTTP ' + res.status));
+  }
+  return data;
 }
 
 async function doText() {
@@ -903,6 +937,16 @@ async function lookup(word) {
     showDemoLookup(word);
     return;
   }
+  if (!key) {
+    try {
+      const e = await callHostedGemini({type: 'lookup', word});
+      renderLookup(word, e);
+    } catch(e) {
+      document.getElementById('dContent').innerHTML =
+        '<div class="dload">' + escapeHtml(e.message || 'Lookup failed.') + '</div>';
+    }
+    return;
+  }
   const isRU = /[Ѐ-ӿ]/.test(word);
   const prompt = `Medical dictionary entry for: "${word}"
 Language: ${isRU ? 'Russian' : 'English'}. Context: Biomedical engineering — cardiology, ECMO, dialysis, bioelectronics, nanotech, biosensors.
@@ -920,16 +964,20 @@ Return ONLY valid JSON: {"word":"${word}","translation":"[${isRU?'English':'Russ
     let raw = (data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}')
       .replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/,'').trim();
     const e = JSON.parse(raw);
-    document.getElementById('dContent').innerHTML =
-      '<div class="dword">' + escapeHtml(e.word || word) + '</div>' +
-      (e.partOfSpeech ? '<div class="dpos">' + escapeHtml(e.partOfSpeech) + '</div>' : '') +
-      '<div class="dtrans">' + escapeHtml(e.translation || '—') + '</div>' +
-      '<div class="ddef">' + escapeHtml(e.definition || 'Definition unavailable.') + '</div>' +
-      (e.examples?.length ? '<div class="dexlbl">In Context</div>' +
-        e.examples.map(x => '<div class="dex">' + escapeHtml(x) + '</div>').join('') : '');
+    renderLookup(word, e);
   } catch(e) {
     document.getElementById('dContent').innerHTML = '<div class="dload">Lookup failed.</div>';
   }
+}
+
+function renderLookup(word, e) {
+  document.getElementById('dContent').innerHTML =
+    '<div class="dword">' + escapeHtml(e.word || word) + '</div>' +
+    (e.partOfSpeech ? '<div class="dpos">' + escapeHtml(e.partOfSpeech) + '</div>' : '') +
+    '<div class="dtrans">' + escapeHtml(e.translation || '—') + '</div>' +
+    '<div class="ddef">' + escapeHtml(e.definition || 'Definition unavailable.') + '</div>' +
+    (e.examples?.length ? '<div class="dexlbl">In Context</div>' +
+      e.examples.map(x => '<div class="dex">' + escapeHtml(x) + '</div>').join('') : '');
 }
 
 function showDemoLookup(word) {

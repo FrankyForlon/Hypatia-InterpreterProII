@@ -7,13 +7,32 @@ Browser (Chrome/Edge)
   -> Web Speech API SpeechRecognition
   -> finalResults{} indexed dedup
   -> silenceTimer (1400ms)
-  -> translate(text) via Gemini REST API
+  -> translate(text) via hosted /api/gemini endpoint
   -> addSegment()
   -> DOM + localStorage
   -> optional WebSocket room broadcast
 ```
 
-The app is currently a standalone `index.html` with no build step.
+The app is currently a standalone `index.html` with no frontend build step. Hosted Gemini calls run through a Netlify Function at `/api/gemini` so the production API key can live in Netlify environment variables instead of the browser. A user-provided browser key still exists as a temporary local fallback.
+
+## Current Gemini Shape
+
+```
+Browser
+  -> POST /api/gemini
+  -> netlify/functions/gemini.ts
+  -> Gemini REST API using GEMINI_API_KEY
+  -> JSON response back to browser
+```
+
+Supported actions:
+
+- `translate`: `{type:"translate", text, src}`
+- `lookup`: `{type:"lookup", word}`
+
+Required Netlify environment variable:
+
+- `GEMINI_API_KEY`
 
 ## Current Local Collaboration Shape
 
@@ -115,6 +134,6 @@ Decision criteria:
 
 - No committed secrets.
 - No public production release that depends on a private local WebSocket server.
-- Browser Gemini keys are acceptable for local testing only.
+- Browser Gemini keys are acceptable for local fallback testing only.
+- Production Gemini keys must live in Netlify environment variables.
 - Manual typed input must always work, even if mic/STT fails.
-

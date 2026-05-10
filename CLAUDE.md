@@ -39,10 +39,12 @@ What works locally:
 - Local WebSocket collaboration path when a room server is running.
 - PWA manifest and service worker basics.
 - No-key demo mode for safe UI/classroom testing without Gemini API spend.
+- Hosted Gemini endpoint at `/api/gemini` through `netlify/functions/gemini.ts`.
 
 What is not production-ready:
 
-- Gemini API calls still happen from the browser.
+- Netlify still needs `GEMINI_API_KEY` set before hosted live translation works.
+- User-provided browser keys still exist as a temporary fallback for local testing.
 - Room sharing needs a deployed public `wss://` room server or a different sync layer.
 - There is no account system, durable database, billing, HIPAA posture, or edit-and-retranslate loop yet.
 
@@ -76,6 +78,8 @@ If that page shows `DISPLAY NAME`, `NAME`, `SHARE`, and `JOIN`, it is the new ap
 ## Netlify State
 
 Netlify deploys from GitHub `main`. If production looks stale, wait for the deploy to finish and hard-refresh before assuming the code is missing.
+
+Hosted translation requires a Netlify environment variable named `GEMINI_API_KEY`. Do not put it in source control.
 
 ## Ground Rules
 

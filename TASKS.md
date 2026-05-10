@@ -16,11 +16,13 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Push merged work to GitHub main.
 - [x] Confirm Netlify deploy shows the new `DISPLAY NAME`, `SHARE`, and `JOIN` UI.
 - [x] Add no-key demo mode for safe UI/classroom testing.
+- [x] Add hosted `/api/gemini` endpoint so production can hide the Gemini key.
 
 ## Next Engineering Decisions
 
 - [ ] Decide production sync layer: WebSocket room server vs Firestore vs serverless realtime.
-- [ ] Move Gemini calls behind a server endpoint before any real public beta.
+- [x] Move Gemini calls behind a server endpoint before any real public beta.
+- [ ] Set `GEMINI_API_KEY` in Netlify and verify live hosted translation.
 - [ ] Add edit-and-retranslate for individual transcript segments.
 - [ ] Add CSV glossary upload for session terminology.
 - [x] Add a simple no-key demo/mock mode for testing the UI without spending API credits.
