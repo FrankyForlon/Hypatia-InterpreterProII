@@ -22,7 +22,7 @@ Public hosted-translation URL after `GEMINI_API_KEY` is set in Netlify:
 
 The static app server is on port `4173`.
 The local collaboration room server is on port `18080`.
-The `server` URL parameter is local-development only and is ignored by the public Netlify app.
+The `server` URL parameter is local-development only and is ignored by the public Netlify app. Public Share/Join now uses `/api/rooms`.
 
 If you see `DISPLAY NAME`, `NAME`, `SHARE`, and `JOIN`, you are looking at the new app.
 If you do not see those controls, you are looking at the old app.
@@ -61,9 +61,23 @@ Optional Netlify environment variable for future custom domains:
 
 Local static testing on port `4173` does not run Netlify Functions. Use demo mode locally unless you are running Netlify Dev or testing the deployed site.
 
-## Two-Window Room Test
+## Public Share/Join Test
 
-This is currently a local-only test. Public Netlify room sharing needs an approved production sync layer before beta use.
+1. Open `https://hypatia-interpreterpro.netlify.app/` on device A.
+2. Begin a session with a display name.
+3. Tap `Share`.
+4. Send or paste the copied room link to device B.
+5. On device B, open the link, enter a display name, and begin the session.
+6. Confirm the top strip on device B shows `guest ABC123`.
+7. Send a typed or spoken message from device A.
+8. Confirm device B receives the same transcript segment within a few seconds.
+9. Send a message from device B and confirm device A receives it.
+
+Public rooms are trusted-beta rooms only. Anyone with the room link/code can join.
+
+## Local Two-Window Room Test
+
+This tests the older local WebSocket path.
 
 1. In window A, open the local test URL and begin a session.
 2. Click `Share`.

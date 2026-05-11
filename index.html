@@ -311,7 +311,9 @@ const geminiUrl = k =>
 
 const params = new URLSearchParams(window.location.search);
 const HOSTED_GEMINI_URL = '/api/gemini';
+const HOSTED_ROOMS_URL = '/api/rooms';
 const IS_LOCAL_DEV = ['localhost', '127.0.0.1'].includes(location.hostname);
+const USE_HOSTED_ROOMS = !IS_LOCAL_DEV;
 const DEFAULT_COLLAB_SERVER = IS_LOCAL_DEV ? 'ws://localhost:8080' : '';
 let collabServer = resolveCollabServer();
 let pendingRoom = (params.get('room') || '').toUpperCase().trim();
@@ -359,6 +361,10 @@ let ws = null;
 let roomCode = '';
 let roomRole = 'solo';
 let joinedWaiter = null;
+let roomSeq = 0;
+let roomPollTimer = null;
+let roomPollBusy = false;
+let roomPollFailures = 0;
 
 // STT state — keyed by result index to handle Chrome's re-finalization
 let finalResults = {};   // { resultIndex: transcript }
@@ -560,6 +566,7 @@ function waitForJoined() {
 
 async function createRoom() {
   if (!ensureSpeakerName()) throw new Error('Name required before sharing.');
+  if (USE_HOSTED_ROOMS) return createHostedRoom();
   await connectCollab();
   const joined = waitForJoined();
   ws.send(JSON.stringify({type:'create'}));
@@ -572,6 +579,7 @@ async function joinRoom(code, quiet) {
   const room = String(code || '').toUpperCase().trim();
   if (!room) return;
   if (!ensureSpeakerName()) return;
+  if (USE_HOSTED_ROOMS) return joinHostedRoom(room, quiet);
   try {
     await connectCollab();
     const joined = waitForJoined();
@@ -631,9 +639,115 @@ function handleCollabMessage(evt) {
 }
 
 function sendCollab(msg) {
+  if (USE_HOSTED_ROOMS && roomCode) {
+    sendHostedRoom(msg);
+    return;
+  }
   if (ws && ws.readyState === WebSocket.OPEN && roomCode) {
     ws.send(JSON.stringify(msg));
   }
+}
+
+async function createHostedRoom() {
+  const data = await callHostedRooms('', {
+    type: 'create',
+    segs
+  });
+  applyHostedRoomState(data, 'host');
+  return data.room;
+}
+
+async function joinHostedRoom(code, quiet) {
+  try {
+    const data = await callHostedRooms('/' + encodeURIComponent(code), {type:'join'});
+    applyHostedRoomState(data, 'guest');
+    toast('Joined room ' + roomCode + '.');
+  } catch(e) {
+    if (!quiet) toast(e.message, true);
+  }
+}
+
+function applyHostedRoomState(data, fallbackRole) {
+  roomCode = String(data.room || '').toUpperCase();
+  roomRole = data.role || fallbackRole || 'guest';
+  roomSeq = Number(data.seq || 0);
+  if (Array.isArray(data.segs)) {
+    segs = data.segs;
+    saveSession();
+    renderAll();
+  }
+  updateIdentityUI();
+  startHostedRoomPolling();
+}
+
+function startHostedRoomPolling() {
+  if (!USE_HOSTED_ROOMS || !roomCode) return;
+  if (roomPollTimer) clearInterval(roomPollTimer);
+  roomPollFailures = 0;
+  roomPollTimer = setInterval(pollHostedRoom, 1600);
+  pollHostedRoom();
+}
+
+async function pollHostedRoom() {
+  if (!USE_HOSTED_ROOMS || !roomCode || roomPollBusy) return;
+  roomPollBusy = true;
+  try {
+    const data = await callHostedRooms('/' + encodeURIComponent(roomCode) + '?since=' + encodeURIComponent(roomSeq), null, 'GET');
+    const events = Array.isArray(data.events) ? data.events : [];
+    events.forEach(handleHostedRoomEvent);
+    roomSeq = Math.max(roomSeq, Number(data.seq || 0));
+    roomPollFailures = 0;
+  } catch(e) {
+    roomPollFailures += 1;
+    if (roomPollFailures === 3) toast('Room sync is having trouble. New messages may be delayed.', true);
+  } finally {
+    roomPollBusy = false;
+  }
+}
+
+function handleHostedRoomEvent(event) {
+  roomSeq = Math.max(roomSeq, Number(event.seq || 0));
+  if (event.type === 'add' && event.seg) {
+    if (!segs.some(s => String(s.id) === String(event.seg.id))) addSegment(event.seg, false);
+    return;
+  }
+  if (event.type === 'clear') {
+    segs = [];
+    saveSession();
+    showEmpty();
+    clearInterim();
+  }
+}
+
+async function sendHostedRoom(msg) {
+  try {
+    if (msg.type === 'add' && msg.seg) {
+      const data = await callHostedRooms('/' + encodeURIComponent(roomCode), {type:'add', seg: msg.seg});
+      roomSeq = Math.max(roomSeq, Number(data.seq || 0));
+      return;
+    }
+    if (msg.type === 'clear') {
+      const data = await callHostedRooms('/' + encodeURIComponent(roomCode), {type:'clear'});
+      roomSeq = Math.max(roomSeq, Number(data.seq || 0));
+    }
+  } catch(e) {
+    toast('Room sync failed: ' + e.message, true);
+  }
+}
+
+async function callHostedRooms(path, payload, method) {
+  const res = await fetch(HOSTED_ROOMS_URL + path, {
+    method: method || 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: payload ? JSON.stringify(payload) : undefined
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    if (data.error === 'ROOM_NOT_FOUND') throw new Error('Room not found. Check the code and try again.');
+    if (data.error === 'ORIGIN_NOT_ALLOWED') throw new Error('Room sync rejected this app origin.');
+    throw new Error(data.message || ('Room sync failed: HTTP ' + res.status));
+  }
+  return data;
 }
 
 async function doShare() {
@@ -641,6 +755,15 @@ async function doShare() {
     if (!roomCode) await createRoom();
     const url = shareUrl();
     await copyText(url);
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Hypatia room ' + roomCode,
+          text: 'Join my Hypatia room ' + roomCode,
+          url
+        });
+      } catch(e) {}
+    }
     toast('Share link copied for room ' + roomCode + '.');
   } catch(e) {
     toast(e.message, true);

@@ -22,13 +22,14 @@ The current wedge is not "all languages for everyone." The near-term wedge is a 
 - Local persistence through `localStorage`.
 - Speaker name prompt, speaker labels, room state strip, and Share/Join UI.
 - Local WebSocket collaboration path works when the room server is running.
+- Public Share/Join uses a lightweight Netlify room API for trusted beta testing.
 - PWA manifest and service worker are wired.
 
 ## Not Production-Ready
 
 - The live Netlify site may lag until local commits are pushed and deployed.
 - Gemini API calls still happen from the browser. This is acceptable for local beta testing, not production.
-- Public room sharing needs a deployed `wss://` collaboration backend or a different sync layer.
+- Public room sharing is a simple beta sync path, not a HIPAA-ready collaboration system.
 - There is no account system, durable database, billing, HIPAA posture, or edit-and-retranslate loop yet.
 
 ## Target Users
@@ -59,6 +60,7 @@ The current wedge is not "all languages for everyone." The near-term wedge is a 
 
 The root app currently has local WebSocket room sharing. Firestore remains a possible future sync layer. Do not assume either is the final production architecture until a short architecture decision record compares:
 
+- Netlify Blobs room polling
 - WebSocket room server
 - Firestore
 - Netlify/Vercel serverless or edge functions

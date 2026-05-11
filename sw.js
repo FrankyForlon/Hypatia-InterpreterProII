@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hypatia-v5';
+const CACHE_NAME = 'hypatia-v6';
 const CORE_ASSETS = [
   '/',
   '/index.html',

@@ -23,10 +23,11 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Add cleaned source transcript display with deterministic punctuation/capitalization polish.
 - [x] Add Gemini fallback model cascade for temporary capacity spikes.
 - [x] Make hosted transcript cleaning deterministic so Gemini cannot rewrite the source record.
+- [x] Add public Share/Join beta rooms with Netlify Blobs polling.
 
 ## Next Engineering Decisions
 
-- [ ] Decide production sync layer: WebSocket room server vs Firestore vs serverless realtime.
+- [ ] Decide long-term production sync layer: Netlify room polling vs WebSocket room server vs Firestore vs managed realtime.
 - [x] Move Gemini calls behind a server endpoint before any real public beta.
 - [x] Set `GEMINI_API_KEY` in Netlify and verify live hosted translation.
 - [ ] Add edit-and-retranslate for individual transcript segments.

@@ -10,7 +10,7 @@ Browser (Chrome/Edge)
   -> translate(text) via hosted /api/gemini endpoint
   -> addSegment()
   -> DOM + localStorage
-  -> optional WebSocket room broadcast
+  -> optional room broadcast
 ```
 
 The app is currently a standalone `index.html` with no frontend build step. Hosted Gemini calls run through a Netlify Function at `/api/gemini` so the production API key can live in Netlify environment variables instead of the browser. A user-provided browser key exists only as a temporary local fallback.
@@ -44,6 +44,30 @@ Optional Netlify environment variable:
 
 - `ALLOWED_ORIGINS` as a comma-separated list if future custom domains need access.
 
+## Current Production Collaboration Shape
+
+```
+Host browser
+  -> Share
+  -> POST /api/rooms
+  -> receives room code / link
+
+Guest browser
+  -> opens ?room=ABC123 or taps Join
+  -> POST /api/rooms/ABC123
+  -> receives current room state
+
+Both browsers
+  -> POST new completed segments to /api/rooms/ABC123
+  -> poll /api/rooms/ABC123?since=N for new room events
+```
+
+The public room API is a lightweight beta sync layer backed by Netlify Blobs:
+
+`netlify/functions/rooms.ts`
+
+This is designed for trusted testing with friends/family/classroom pilots. It is not a HIPAA-ready realtime architecture, and it does not include accounts, per-room auth, or durable long-term records.
+
 ## Current Local Collaboration Shape
 
 ```
@@ -69,8 +93,6 @@ Local room server:
 Local test server URL:
 
 `http://127.0.0.1:4173/?server=ws://127.0.0.1:18080`
-
-Public sharing is not production-ready until the room server is deployed as `wss://...` or replaced by a different sync layer.
 
 The public app intentionally ignores `?server=` and does not prompt for arbitrary collaboration servers. The `server` URL override is local-development only, so crafted public links cannot redirect transcript sync to an attacker-controlled WebSocket endpoint.
 
@@ -153,4 +175,5 @@ Decision criteria:
 - Production Gemini keys must live in Netlify environment variables.
 - Hosted Gemini endpoint must stay restricted to trusted origins; do not reintroduce URL-based API endpoint overrides.
 - Public collaboration must not accept arbitrary WebSocket endpoints from URL parameters.
+- Public room links are for trusted beta testing only; do not treat room codes as medical-grade access control.
 - Manual typed input must always work, even if mic/STT fails.

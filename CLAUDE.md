@@ -40,14 +40,14 @@ What works locally:
 - PWA manifest and service worker basics.
 - No-key demo mode for safe UI/classroom testing without Gemini API spend.
 - Hosted Gemini endpoint at `/api/gemini` through `netlify/functions/gemini.ts`.
-- Public app ignores arbitrary `?server=` WebSocket overrides; room sharing still needs an approved production sync layer.
+- Public app ignores arbitrary `?server=` WebSocket overrides.
+- Public Share/Join uses `/api/rooms` with Netlify Blobs polling for trusted beta testing.
 - Translator profiles and free-text session context now influence hosted translation.
 
 What is not production-ready:
 
-- Netlify still needs `GEMINI_API_KEY` set before hosted live translation works.
 - User-provided browser keys exist only as a temporary fallback for local testing.
-- Room sharing needs a deployed public `wss://` room server or a different sync layer.
+- Public room sharing is trusted-beta only; room codes are not medical-grade access control.
 - There is no account system, durable database, billing, HIPAA posture, or edit-and-retranslate loop yet.
 
 ## Security State
