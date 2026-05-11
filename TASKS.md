@@ -30,9 +30,12 @@ Updated by agents after completing work. Keep this short and current.
 - [ ] Decide long-term production sync layer: Netlify room polling vs WebSocket room server vs Firestore vs managed realtime.
 - [x] Move Gemini calls behind a server endpoint before any real public beta.
 - [x] Set `GEMINI_API_KEY` in Netlify and verify live hosted translation.
+- [ ] Add visible retry/resend for failed translation segments.
 - [ ] Add edit-and-retranslate for individual transcript segments.
 - [ ] Add CSV glossary upload for session terminology.
 - [x] Add a simple no-key demo/mock mode for testing the UI without spending API credits.
+- [ ] Run streaming STT bakeoff: Soniox, ElevenLabs Scribe, OpenAI Realtime transcription, Google Speech-to-Text.
+- [ ] Add Spanish/ELL classroom profile after Russian classroom field tests stabilize.
 
 ## Backlog
 
@@ -40,6 +43,7 @@ Updated by agents after completing work. Keep this short and current.
 - [ ] Durable transcript storage.
 - [ ] User accounts.
 - [ ] Export to DOCX/PDF/Markdown.
+- [ ] Field-test log / diary ritual after each substantial Hypatia session.
 - [ ] Education/ELL landing page and outreach notes.
 - [ ] Add transcript/raw-audio timestamps and richer stenographer controls.
 - [ ] HIPAA/security architecture review.

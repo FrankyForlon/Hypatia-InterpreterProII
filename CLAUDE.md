@@ -44,6 +44,13 @@ What works locally:
 - Public Share/Join uses `/api/rooms` with Netlify Blobs polling for trusted beta testing.
 - Translator profiles and free-text session context now influence hosted translation.
 
+Latest field-test notes:
+
+- Girlfriend test: Share/Join felt smooth with a clear speaker; Peter forgot to export because the conversation itself worked.
+- Mom test: Share/Join and Export worked, but speech recognition struggled with unclear casual speech. Exported transcript includes comic but useful ASR failures such as "Scandinavia, England, Wales: The Vikings."
+- Product milestone: "boomer-proofing" is now a serious quality bar. If Hypatia works for Peter's mom, it is much closer to ordinary-person readiness.
+- Next technical frontier is streaming STT accuracy plus failed-translation recovery, not the core Share/Join UI.
+
 What is not production-ready:
 
 - User-provided browser keys exist only as a temporary fallback for local testing.
