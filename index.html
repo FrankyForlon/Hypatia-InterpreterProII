@@ -692,7 +692,7 @@ async function pollHostedRoom() {
   if (!USE_HOSTED_ROOMS || !roomCode || roomPollBusy) return;
   roomPollBusy = true;
   try {
-    const data = await callHostedRooms('/' + encodeURIComponent(roomCode) + '?since=' + encodeURIComponent(roomSeq), null, 'GET');
+    const data = await callHostedRooms('/' + encodeURIComponent(roomCode), {type:'poll', since: roomSeq});
     const events = Array.isArray(data.events) ? data.events : [];
     events.forEach(handleHostedRoomEvent);
     roomSeq = Math.max(roomSeq, Number(data.seq || 0));

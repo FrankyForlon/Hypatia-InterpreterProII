@@ -46,6 +46,7 @@ export default async function rooms(req, context) {
     if (req.method === "POST") {
       const body = await readJson(req);
       if (body.type === "join") return json(await joinRoom(roomFromPath), 200, origin);
+      if (body.type === "poll") return json(await pollRoom(roomFromPath, Number(body.since || 0)), 200, origin);
       if (body.type === "add") return json(await addSegment(roomFromPath, body.seg), 200, origin);
       if (body.type === "clear") return json(await clearRoom(roomFromPath), 200, origin);
       return json({ error: "UNKNOWN_TYPE" }, 400, origin);
