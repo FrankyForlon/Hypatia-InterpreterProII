@@ -1,8 +1,8 @@
-const MODEL = "gemini-2.5-flash";
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const MAX_TEXT_LENGTH = 4000;
 const MAX_WORD_LENGTH = 80;
 const MAX_CONTEXT_LENGTH = 800;
-const GEMINI_MAX_ATTEMPTS = 3;
+const GEMINI_ATTEMPTS_PER_MODEL = 2;
 const RETRYABLE_GEMINI_STATUSES = new Set([429, 500, 502, 503, 504]);
 const DEFAULT_ALLOWED_ORIGINS = [
   "https://hypatia-interpreterpro.netlify.app",
@@ -251,49 +251,59 @@ Return only valid JSON: {"word":"${escapePromptText(word)}","translation":"[${is
 }
 
 async function callGemini(apiKey, prompt, generationConfig) {
-  for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
-    const res = await fetch(geminiUrl(apiKey), {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig,
-      }),
-    });
+  let lastError = null;
 
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const shouldRetry = RETRYABLE_GEMINI_STATUSES.has(res.status) && attempt < GEMINI_MAX_ATTEMPTS;
-      if (shouldRetry) {
-        await sleep(400 * attempt);
-        continue;
+  for (const model of GEMINI_MODELS) {
+    for (let attempt = 1; attempt <= GEMINI_ATTEMPTS_PER_MODEL; attempt++) {
+      const res = await fetch(geminiUrl(apiKey, model), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        lastError = statusError(data?.error?.message || `Gemini HTTP ${res.status}`, res.status);
+
+        if (RETRYABLE_GEMINI_STATUSES.has(res.status) && attempt < GEMINI_ATTEMPTS_PER_MODEL) {
+          await sleep(350 * attempt);
+          continue;
+        }
+
+        if (RETRYABLE_GEMINI_STATUSES.has(res.status)) {
+          break;
+        }
+
+        throw lastError;
       }
-      throw statusError(data?.error?.message || `Gemini HTTP ${res.status}`, res.status);
-    }
 
-    const raw = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}")
-      .replace(/^```(?:json)?\s*/i, "")
-      .replace(/\s*```\s*$/i, "")
-      .trim();
+      const raw = String(data?.candidates?.[0]?.content?.parts?.[0]?.text || "{}")
+        .replace(/^```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
 
-    try {
-      return JSON.parse(raw);
-    } catch {
-      const translated = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-      if (translated) return { translated: translated[1].replace(/\\"/g, '"') };
-      throw statusError("Gemini returned malformed JSON.", 502);
+      try {
+        return JSON.parse(raw);
+      } catch {
+        const translated = raw.match(/"translated"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+        if (translated) return { translated: translated[1].replace(/\\"/g, '"') };
+        throw statusError("Gemini returned malformed JSON.", 502);
+      }
     }
   }
 
-  throw statusError("Gemini request failed after retries.", 503);
+  throw lastError || statusError("Gemini request failed after retries.", 503);
 }
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-function geminiUrl(apiKey) {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+function geminiUrl(apiKey, model) {
+  return `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
 }
 
 function escapePromptText(value) {
