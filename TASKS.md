@@ -22,6 +22,7 @@ Updated by agents after completing work. Keep this short and current.
 - [x] Add translator profiles and context prompt for classroom/medical/travel/literal modes.
 - [x] Add cleaned source transcript display with deterministic punctuation/capitalization polish.
 - [x] Add Gemini fallback model cascade for temporary capacity spikes.
+- [x] Make hosted transcript cleaning deterministic so Gemini cannot rewrite the source record.
 
 ## Next Engineering Decisions
 

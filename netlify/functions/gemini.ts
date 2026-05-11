@@ -171,15 +171,17 @@ Translate the following ${srcName} text to ${tgtName}.
 STRICT RULES:
 1. Preserve exact logical polarity. Negatives must stay negative. Never flip meaning.
 2. Use the domain, style, and session context above.
-3. Clean the source transcript only for punctuation, capitalization, and obvious speech-recognition formatting. Do not change meaning.
-4. Make cleanOriginal read like a clean transcript sentence: fix capitalization, contractions, and sentence-ending punctuation when the intent is clear.
+3. Translate only the text between SOURCE_TEXT_START and SOURCE_TEXT_END. The session context is only background, not source content.
+4. Do not invent, substitute, paraphrase away, or omit facts, names, dates, places, or examples from the source text.
 5. Output natural spoken language for live dialogue.
 6. No explanations, brackets, translator notes, or caveats.
 7. Translate the complete text. Do not truncate or summarize.
 
-Text: "${escapePromptText(text)}"
+SOURCE_TEXT_START
+${escapePromptText(text)}
+SOURCE_TEXT_END
 
-Return only valid JSON with no markdown: {"cleanOriginal":"...","translated":"..."}`;
+Return only valid JSON with no markdown: {"translated":"..."}`;
 
   const parsed = await callGemini(apiKey, prompt, {
     responseMimeType: "application/json",
@@ -190,7 +192,7 @@ Return only valid JSON with no markdown: {"cleanOriginal":"...","translated":"..
   const translated = String(parsed.translated || "").trim();
   if (!translated) throw statusError("Gemini returned an empty translation.", 502);
   return {
-    cleanOriginal: polishCleanOriginal(parsed.cleanOriginal, text, src),
+    cleanOriginal: polishCleanOriginal(text, text, src),
     translated,
   };
 }
